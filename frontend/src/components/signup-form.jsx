@@ -1,0 +1,97 @@
+import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Link } from "react-router-dom"
+import { FcGoogle } from "react-icons/fc";
+
+export function SignupForm({
+  className,
+  ...props
+}) {
+  return (
+    <div className={cn("flex flex-col gap-6 ", className)} {...props}>
+      <Card className="bg-white border-borderPrimary ">
+        <CardHeader className="text-center">
+          <CardTitle className="text-2xl font-main">
+            Welcome to <span className=" text-primaryBlue">Predix</span>
+          </CardTitle>
+          <CardDescription className="font-secondary text-primary ">
+            <div className="text-center text-sm">
+              Already have an account?{" "}
+              <Link to="/login" className="underline underline-offset-4">
+                Log In
+              </Link>
+            </div>
+          </CardDescription>
+        </CardHeader>
+        <CardContent className=" font-secondary text-primary">
+          <form>
+            <div className="grid gap-6">
+              <div className="flex flex-col gap-4">
+                <Button variant="outline" className="w-full">
+                  <FcGoogle />
+                  Sign Up with Google
+                </Button>
+              </div>
+              <div className="after:border-border relative text-center text-sm after:absolute after:inset-0 after:top-1/2 after:z-0 after:flex after:items-center after:border-t">
+                <span className="bg-card text-muted-foreground relative z-10 px-2">
+                  Or continue with
+                </span>
+              </div>
+              <div className="grid gap-3">
+                <div className="grid gap-1">
+                  <Label htmlFor="username" className="font-bold text-sm">
+                    Username
+                  </Label>
+                  <Input
+                    id="username"
+                    type="text"
+                    placeholder="@yuv"
+                    required
+                  />
+                </div>
+                <div className="grid gap-1">
+                  <Label htmlFor="email" className="font-bold text-sm">
+                    Email
+                  </Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="y@example.com"
+                    required
+                  />
+                </div>
+                <div className="grid gap-1">
+                  <div className="flex items-center">
+                    <Label htmlFor="password" className="font-bold text-sm">
+                      Password
+                    </Label>
+                  </div>
+                  <Input id="password" type="password" required />
+                </div>
+                <Button
+                  type="submit"
+                  className="w-full bg-primaryBlue font-bold text-white hover:bg-secondaryBlue  mt-2"
+                >
+                  Sign Up
+                </Button>
+              </div>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+      <div className="font-secondary text-primaryGray *:[a]:hover:text-primary text-center text-xs text-balance *:[a]:underline *:[a]:underline-offset-4">
+        By clicking continue, you agree to our <a href="#">Terms of Service</a>{" "}
+        and <a href="#">Privacy Policy</a>.
+      </div>
+    </div>
+  );
+}

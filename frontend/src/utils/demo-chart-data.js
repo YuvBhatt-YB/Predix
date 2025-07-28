@@ -1,0 +1,27 @@
+export const chartData = {
+    market:"Will Etherum price go up",
+    outcome:"yes",
+    "priceHistory":[
+        { time: "09:00", price: 40 },
+        { time: "09:15", price: 32 },
+        { time: "09:30", price: 30 },
+        { time: "09:45", price: 23 },
+        { time: "10:00", price: 20 },
+        { time: "10:15", price: 10 },
+        { time: "10:30", price: 15 },
+        { time: "10:45", price: 13 },
+        { time: "11:00", price: 30 },
+        { time: "11:15", price: 35 },
+        { time: "11:30", price: 36 },
+        { time: "11:45", price: 25 },
+        { time: "12:00", price: 20 },
+        { time: "10:30", price: 15 },
+        { time: "10:45", price: 13 },
+        { time: "11:00", price: 30 },
+        { time: "11:15", price: 35 },
+        { time: "11:30", price: 36 },
+        { time: "11:45", price: 25 },
+        { time: "12:00", price: 20 },
+        { time: "12:00", price: 30 }
+    ]
+}
