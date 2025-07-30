@@ -25,7 +25,7 @@ export default function useAmount(currentPrice){
     if (!intPart && !decPart) return;
     const rawAmount = parseAmount(value)
     if(rawAmount > 100000) {
-      setMaxAmountReached(true)
+      setMaxAmountReached((prevState) => !prevState)
       return
     }
     setAmount(value ? `${formatAmount(value)}`:"")
@@ -38,7 +38,7 @@ export default function useAmount(currentPrice){
     const rawAmount = parseAmount(amount)
     let newAmount = rawAmount + inc
     if(newAmount >100000) {
-      setMaxAmountReached(true)
+      setMaxAmountReached((prevState) => !prevState)
       return
     }
     const formatted = formatAmount(newAmount)
