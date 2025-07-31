@@ -40,6 +40,9 @@
   .max-width{
     max-width: 1040px;
   }
+  .no-scrollBar{
+    scrollbar-width: 0;
+  }
 }
 
 @theme inline {

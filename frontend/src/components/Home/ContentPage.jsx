@@ -1,10 +1,10 @@
 import React from 'react'
 import { Outlet } from 'react-router-dom'
 
-const ContentPage = () => {
+const ContentPage = ({activeTab}) => {
   return (
     <div>
-      <Outlet />
+      <h1>{activeTab}</h1>
     </div>
   )
 }
