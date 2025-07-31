@@ -34,15 +34,22 @@
   --text-esm:12px;
   --color-borderGray:#D1D1D2;
   --color-light:#EEEEEE;
+  --color-search:#F4F5F6;
+  --color-progress:#F2542D;
+  --color-snow:#F0F0F0;
 }
 
 @layer components {
   .max-width{
     max-width: 1040px;
   }
-  .no-scrollBar{
-    scrollbar-width: 0;
+  .no-scrollBar::-webkit-scrollbar{
+    display:none;
   }
+  .no-scrollBar {
+  -ms-overflow-style: none;  
+  scrollbar-width: none;     
+}
 }
 
 @theme inline {

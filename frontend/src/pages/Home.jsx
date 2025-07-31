@@ -7,9 +7,11 @@ import ContentPage from '@/components/Home/ContentPage'
 const Home = () => {
   const [activeTab,setActiveTab] = useState("new")
   return (
-    <div className=' w-full max-width mx-auto'>
-      <Navbar />
-      <Menu setActiveTab={setActiveTab} activeTab={activeTab}/>
+    <div>
+      <div className=' w-full bg-white sticky top-0 z-50'>
+        <Navbar />
+        <Menu setActiveTab={setActiveTab} activeTab={activeTab}/>
+      </div>
       <ContentPage activeTab={activeTab} />
     </div>
   )
