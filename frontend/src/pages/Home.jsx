@@ -2,7 +2,8 @@ import Navbar from '@/components/Home/Navbar'
 import Menu from '@/components/Home/Menu'
 
 import React, { useState } from 'react'
-import ContentPage from '@/components/Home/ContentPage'
+
+import { Outlet } from 'react-router-dom'
 
 const Home = () => {
   const [activeTab,setActiveTab] = useState("new")
@@ -12,7 +13,9 @@ const Home = () => {
         <Navbar />
         <Menu setActiveTab={setActiveTab} activeTab={activeTab}/>
       </div>
-      <ContentPage activeTab={activeTab} />
+      <div>
+        <Outlet />
+      </div>
     </div>
   )
 }

@@ -1,13 +1,14 @@
 import React from 'react'
-import { Outlet } from 'react-router-dom'
+
 import Search from './ContentPage/Search'
 import MarketModal from './ContentPage/MarketModal'
 
-const ContentPage = ({activeTab}) => {
+const Markets = () => {
+  
   return (
     <div >
       <div className="max-width mx-auto px-2 lg:px-0">
-        {activeTab}
+        
         <div className="w-full">
           <Search />
         </div>
@@ -36,4 +37,4 @@ const ContentPage = ({activeTab}) => {
   );
 }
 
-export default ContentPage
+export default Markets

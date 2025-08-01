@@ -6,7 +6,8 @@ import LandingPage from './pages/LandingPage.jsx'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
 import Home from './pages/Home'
-
+import Profile from './components/Home/Profile'
+import Markets from './components/Home/Markets'
 
 const router = createBrowserRouter([
   {
@@ -23,7 +24,17 @@ const router = createBrowserRouter([
   },
   {
     path:"/home",
-    element:<Home />
+    element:<Home />,
+    children:[
+      {
+        index:true,
+        element:<Markets />
+      },
+      {
+        path:"profile",
+        element:<Profile />
+      }
+    ]
   }
 ])
 

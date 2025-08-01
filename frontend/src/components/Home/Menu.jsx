@@ -19,7 +19,8 @@ const Menu = ({setActiveTab,activeTab}) => {
       <div className=" max-width mx-auto w-full font-secondary overflow-x-auto  no-scrollBar whitespace-nowrap touch-auto scroll-smooth">
         <div className="inline-flex min-w-max gap-6 px-2 py-4 lg:px-0">
           {components.map((component, index) => (
-            <button
+            <Link
+            to="/home"
               key={index}
               className={` font-semibold  hover:text-primary cursor-pointer ${
                 activeTab === component.tab
@@ -29,7 +30,8 @@ const Menu = ({setActiveTab,activeTab}) => {
               onClick={() => setActiveTab(component.tab)}
             >
               <p>{component.title}</p>
-            </button>
+            </Link>
+            
           ))}
         </div>
       </div>

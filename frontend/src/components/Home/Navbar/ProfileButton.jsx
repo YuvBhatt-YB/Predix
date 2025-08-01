@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { IoIosArrowDown } from "react-icons/io";
 import { CiWallet } from "react-icons/ci";
 import avatar from "../../../assets/avatar.png"
+import { Link } from 'react-router-dom';
 const ProfileButton = () => {
   return (
     <DropdownMenu>
@@ -38,7 +39,7 @@ const ProfileButton = () => {
           My Account
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem className="py-3">Profile</DropdownMenuItem>
+        <DropdownMenuItem className="py-3" asChild><Link to="/home/profile">Profile</Link></DropdownMenuItem>
         <DropdownMenuItem className="py-3">Terms Of Use</DropdownMenuItem>
         <div className='flex flex-col gap-1.5 py-3 md:hidden'>
           <div className="  px-3 py-2 flex items-center justify-center gap-1 rounded-small font-semibold bg-light">

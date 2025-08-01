@@ -6,7 +6,7 @@ import eth from "../../../assets/eth.webp"
 const MarketModal = () => {
     const [progress,setProgress] = useState(75)
   return (
-    <div className=" border-1 font-secondar p-2 rounded-small border-borderPrimary bg-white">
+    <div className=" border-1 font-secondar p-2 rounded-small border-borderPrimary bg-white shadow-md">
       <div className=' flex flex-col gap-3'>
         <div className='flex items-center gap-2'>
             <Progress value={progress} className="flex-1 bg-light [&>div]:bg-progress"  />
