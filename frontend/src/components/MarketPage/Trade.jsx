@@ -23,14 +23,31 @@ const Trade = () => {
     handleSetAmount,
     handleIncrement,
     updatePayoutOptionChange,
-    currentPrice
+    currentPrice,
+    selectedCase,
+    setSelectedCase
   } = useAmount({yes:0.23,no:0.78});
   return (
     <Card className=" w-full md:max-w-sm  ">
       <CardHeader>
         <CardTitle className="font-secondary text-primary flex justify-between">
-          <div>
-            <p>Buy</p>
+          <div className=" flex gap-2">
+            <button
+              className={`${
+                selectedCase === "buy" ? "text-primary" : " text-secondaryGray"
+              }`}
+              onClick={() => setSelectedCase("buy")}
+            >
+              Buy
+            </button>
+            <button
+              className={`${
+                selectedCase === "sell" ? "text-primary" : " text-secondaryGray"
+              }`}
+              onClick={() => setSelectedCase("sell")}
+            >
+              Sell
+            </button>
           </div>
           <p>Market</p>
         </CardTitle>
@@ -85,12 +102,16 @@ const Trade = () => {
         </div>
         <div className=" font-secondary flex justify-between items-center  w-full">
           <div>
-            <p className=" text-primary text-2xl">Amount</p>
+            {selectedCase === "buy" ? (
+              <p className=" text-primary text-2xl">Amount</p>
+            ) : (
+              <p className=" text-primary text-2xl">Shares</p>
+            )}
           </div>
           <div className="  flex">
             <input
               type="text"
-              placeholder="$0"
+              placeholder={`${selectedCase === "buy" ? "$0" : "0"}`}
               value={amount}
               className={`  w-full text-end  text-primary placeholder:text-borderGray focus:outline-none 
                  ${
@@ -106,50 +127,52 @@ const Trade = () => {
             />
           </div>
         </div>
-        <div className=" w-full flex justify-end ">
-          <div className=" font-secondary text-esm flex gap-1">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => handleIncrement(1)}
-            >
-              +$1
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => handleIncrement(10)}
-            >
-              +$10
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => handleIncrement(20)}
-            >
-              +$20
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => handleIncrement(100)}
-            >
-              +$100
-            </Button>
+        {selectedCase === "buy" && (
+          <div className=" w-full flex justify-end ">
+            <div className=" font-secondary text-esm flex gap-1">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleIncrement(1)}
+              >
+                +$1
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleIncrement(10)}
+              >
+                +$10
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleIncrement(20)}
+              >
+                +$20
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleIncrement(100)}
+              >
+                +$100
+              </Button>
+            </div>
           </div>
-        </div>
+        )}
 
         <div
-          className={` transition-all duration-500 overflow-hidden ${
+          className={`transition-all duration-500 overflow-hidden  ${
             amount
               ? " opacity-100 max-h-[300px] border-t-2"
-              : " opacity-0 max-h-[0px]"
+              : "  opacity-0 max-h-[0px]"
           } `}
         >
           <div className=" flex items-center justify-between py-4">
             <div className=" font-secondary">
-              <p className=" flex items-center text-2xl gap-2">
-                Win <RiMoneyDollarCircleFill className=" text-darkGreen" />
+              <p className={` flex items-center ${selectedCase === "buy" ? "text-2xl":"text-xl"} gap-2`}>
+                {selectedCase === "buy" ? "Amount" : "You'll recieve"} <RiMoneyDollarCircleFill className=" text-darkGreen" />
               </p>
               <p className=" text-primaryGray text-sm">
                 Avg. Price
@@ -179,12 +202,12 @@ const Trade = () => {
       </CardContent>
       <CardFooter className="flex-col gap-2">
         <Button
-            size="lg"
-            type="submit"
-            className="w-full font-secondary font-semibold md:py-8 bg-primaryBlue hover:bg-secondaryBlue"
-          >
-            Buy {selectedOption.charAt(0).toUpperCase() + selectedOption.slice(1)}
-          </Button>
+          size="lg"
+          type="submit"
+          className="w-full font-secondary font-semibold md:py-8 bg-primaryBlue hover:bg-secondaryBlue"
+        >
+          <p>{selectedCase === "buy" ? "Buy" : "Sell"} {selectedOption.charAt(0).toUpperCase() + selectedOption.slice(1)}</p>
+        </Button>
         <div className="font-secondary text-primaryGray *:[a]:hover:text-primary text-center text-xs text-balance *:[a]:underline *:[a]:underline-offset-4 mt-2">
           By clicking continue, you agree to our{" "}
           <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>.
