@@ -22,6 +22,6 @@ export const chartData = {
         { time: "11:30", price: 36 },
         { time: "11:45", price: 25 },
         { time: "12:00", price: 20 },
-        { time: "12:00", price: 30 }
+        { time: "12:00", price: 30 },
     ]
 }

@@ -26,7 +26,7 @@ const Trade = () => {
     currentPrice
   } = useAmount({yes:0.23,no:0.78});
   return (
-    <Card className="w-full md:max-w-sm  ">
+    <Card className=" w-full md:max-w-sm  ">
       <CardHeader>
         <CardTitle className="font-secondary text-primary flex justify-between">
           <div>
@@ -183,7 +183,7 @@ const Trade = () => {
             type="submit"
             className="w-full font-secondary font-semibold md:py-8 bg-primaryBlue hover:bg-secondaryBlue"
           >
-            Buy {selectedOption.charAt(0).toUpperCase()}
+            Buy {selectedOption.charAt(0).toUpperCase() + selectedOption.slice(1)}
           </Button>
         <div className="font-secondary text-primaryGray *:[a]:hover:text-primary text-center text-xs text-balance *:[a]:underline *:[a]:underline-offset-4 mt-2">
           By clicking continue, you agree to our{" "}

@@ -9,7 +9,7 @@ const DisplayChart = () => {
       <div className=' flex gap-4 flex-col mb-4'>
         <div className=' flex items-center gap-4'>
             <img src="" alt="" srcset="" className='h-[50px] w-[50px] rounded-small' />
-            <p className=' font-secondary font-semibold text-xl md:text-2xl text-primary'>Will Ethereum Price go to $3,000 ?</p>
+            <p className=' font-secondary font-semibold text-xl md:text-2xl text-primary'>Will Real Madrid win the Fifa World Cup 2025 ?</p>
         </div>
         <div>
             <p className=' font-secondary text-labelColor'>$ 270M Vol</p>
