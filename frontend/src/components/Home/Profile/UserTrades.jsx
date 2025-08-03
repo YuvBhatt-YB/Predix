@@ -3,7 +3,7 @@ import UserTradeModal from './UserTradeModal'
 
 const UserTrades = () => {
   return (
-    <div className=' max-w-4/5'>
+    <div className=' w-full md:max-w-4/5'>
       <div className=' border-b-1 py-2'>
         <p className=' font-secondary font-semibold'>Current Positions</p>
       </div>

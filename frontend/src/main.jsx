@@ -8,6 +8,7 @@ import Signup from './pages/Signup'
 import Home from './pages/Home'
 import Profile from './components/Home/Profile'
 import Markets from './components/Home/Markets'
+import MarketPage from './pages/MarketPage'
 
 const router = createBrowserRouter([
   {
@@ -33,6 +34,10 @@ const router = createBrowserRouter([
       {
         path:"profile",
         element:<Profile />
+      },
+      {
+        path:":id",
+        element:<MarketPage />
       }
     ]
   }
