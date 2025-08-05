@@ -1,4 +1,6 @@
+import { setActiveTab } from '@/state/activeTab/activeTab'
 import React from 'react'
+import { useDispatch, useSelector } from 'react-redux'
 import { Link } from 'react-router-dom'
 
 const components = [
@@ -13,7 +15,9 @@ const components = [
   {title:"World",tab:"world"},
   {title:"Tennis",tab:"tennis"}
 ]
-const Menu = ({setActiveTab,activeTab}) => {
+const Menu = () => {
+  const activeTab = useSelector((state)=>state.activeTab.active)
+  const dispatch = useDispatch()
   return (
     <div className='border-b-1 '>
       <div className=" max-width mx-auto w-full font-secondary overflow-x-auto  no-scrollBar whitespace-nowrap touch-auto scroll-smooth">
@@ -27,7 +31,7 @@ const Menu = ({setActiveTab,activeTab}) => {
                   ? "text-primary"
                   : "text-secondaryGray"
               }`}
-              onClick={() => setActiveTab(component.tab)}
+              onClick={() => dispatch(setActiveTab(component.tab))}
             >
               <p>{component.title}</p>
             </Link>

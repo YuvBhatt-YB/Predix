@@ -2,13 +2,14 @@ import React from 'react'
 
 import Search from './ContentPage/Search'
 import MarketModal from './ContentPage/MarketModal'
+import { useSelector } from 'react-redux'
 
 const Markets = () => {
-  
+  const activeTab = useSelector((state) => state.activeTab.active)
   return (
     <div >
       <div className="max-width mx-auto px-2 lg:px-0">
-        
+        <p>{activeTab}</p>
         <div className="w-full">
           <Search />
         </div>

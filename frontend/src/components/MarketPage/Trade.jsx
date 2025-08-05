@@ -28,7 +28,7 @@ const Trade = () => {
     setSelectedCase
   } = useAmount({yes:0.23,no:0.78});
   return (
-    <Card className=" w-full md:max-w-sm  ">
+    <Card className=" w-full lg:max-w-sm  ">
       <CardHeader>
         <CardTitle className="font-secondary text-primary flex justify-between">
           <div className=" flex gap-2">

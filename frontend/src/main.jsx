@@ -9,6 +9,8 @@ import Home from './pages/Home'
 import Profile from './components/Home/Profile'
 import Markets from './components/Home/Markets'
 import MarketPage from './pages/MarketPage'
+import {Provider} from "react-redux"
+import { store } from './state/store'
 
 const router = createBrowserRouter([
   {
@@ -29,7 +31,8 @@ const router = createBrowserRouter([
     children:[
       {
         index:true,
-        element:<Markets />
+        element:<Markets />,
+        
       },
       {
         path:"profile",
@@ -44,8 +47,10 @@ const router = createBrowserRouter([
 ])
 
 
+
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <RouterProvider router={router} />
+    <Provider store={store}><RouterProvider router={router} /></Provider>
+    
   </StrictMode>,
 )
