@@ -1,4 +1,5 @@
 import { setActiveTab } from '@/state/activeTab/activeTab'
+import { setSearchValue } from '@/state/searchValue/searchValue'
 import React from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { Link } from 'react-router-dom'
@@ -31,7 +32,10 @@ const Menu = () => {
                   ? "text-primary"
                   : "text-secondaryGray"
               }`}
-              onClick={() => dispatch(setActiveTab(component.tab))}
+              onClick={() => {
+                dispatch(setActiveTab(component.tab))
+                dispatch(setSearchValue(""))
+              }}
             >
               <p>{component.title}</p>
             </Link>

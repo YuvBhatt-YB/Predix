@@ -1,15 +1,18 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 
 import Search from './ContentPage/Search'
 import MarketModal from './ContentPage/MarketModal'
-import { useSelector } from 'react-redux'
+import { useDispatch, useSelector } from 'react-redux'
+import { setSearchValue } from '@/state/searchValue/searchValue'
 
 const Markets = () => {
   const activeTab = useSelector((state) => state.activeTab.active)
+  const searchVal = useSelector((state) => state.searchValue.searchVal)
   return (
     <div >
       <div className="max-width mx-auto px-2 lg:px-0">
         <p>{activeTab}</p>
+        <p>{searchVal}</p>
         <div className="w-full">
           <Search />
         </div>
