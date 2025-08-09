@@ -9,4 +9,5 @@ app.get("/",(request: Request,response: Response)=>{
     return response.json({message:"Hello world"})
 })
 
-app.listen(PORT,()=>{console.log(`Server is Running at PORT ${PORT}`)})
+
+app.listen(PORT,(): void=>{console.log(`Server is Running at PORT ${PORT}`)})
