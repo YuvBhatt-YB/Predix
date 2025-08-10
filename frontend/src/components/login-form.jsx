@@ -11,11 +11,30 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Link } from "react-router-dom"
 import { FcGoogle } from "react-icons/fc";
+import api from "../api/auth"
+import { useForm } from "react-hook-form"
+import z from "zod"
 
+const schema = z.object({
+  email:z.email(),
+  password:z.string().min(8)
+})
 export function LoginForm({
   className,
   ...props
 }) {
+  const {register,handleSubmit,setError,formState: {errors,isSubmitting}} = useForm()
+  const onSubmit = async (data) => {
+    try{
+      await new Promise((resolve) => setTimeout(resolve,2000))
+      console.log(data)
+    }catch(error){
+      setError("root",{
+        message:"Wrong credentials"
+      })
+    }
+    //const response = await api.post("/login")
+  }
   return (
     <div className={cn("flex flex-col gap-6 ", className)} {...props}>
       <Card className="bg-white border-borderPrimary ">
@@ -33,7 +52,7 @@ export function LoginForm({
           </CardDescription>
         </CardHeader>
         <CardContent className=" font-secondary text-primary">
-          <form>
+          <form onSubmit={handleSubmit(onSubmit)}>
             <div className="grid gap-6">
               <div className="flex flex-col gap-4">
                 <Button variant="outline" className="w-full">
@@ -52,11 +71,16 @@ export function LoginForm({
                     Email
                   </Label>
                   <Input
+                    {...register("email",{
+                      required:"Email is required"
+                    })}
                     id="email"
                     type="email"
+                    name="email"
                     placeholder="y@example.com"
-                    required
+                    
                   />
+                  {errors.email && <p>{errors.email.message}</p>}
                 </div>
                 <div className="grid gap-3">
                   <div className="flex items-center">
@@ -64,13 +88,22 @@ export function LoginForm({
                       Password
                     </Label>
                   </div>
-                  <Input id="password" type="password" required />
+                  <Input {...register("password",{
+                    required:"Password is required",
+                    minLength:{
+                      value:8,
+                      message:"Password must include at least 8 characters"
+                    }
+                  })} id="password" name="password" type="password" />
+                  {errors.password && <p>{errors.password.message}</p>}
                 </div>
                 <Button
+                  disabled={isSubmitting}
                   type="submit"
                   className="w-full bg-primaryBlue font-bold text-white hover:bg-secondaryBlue "
+
                 >
-                  Login
+                  {isSubmitting ? "Logging In" : "Log In"}
                 </Button>
               </div>
             </div>
