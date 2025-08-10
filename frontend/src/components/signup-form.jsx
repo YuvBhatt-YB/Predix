@@ -9,13 +9,46 @@ import {
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Link } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
 import { FcGoogle } from "react-icons/fc";
+import z from "zod"
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import api from "../api/auth"
+import AlertBox from "./Alerts/AlertBox"
 
 export function SignupForm({
   className,
   ...props
 }) {
+  const schema = z.object({
+    username: z.string().min(3,"Username must be atleast 3 characters"),
+    email: z.email("Email ID is not valid"),
+    password: z.string().min(8,"Password must be at least 8 characters long").regex(/[A-Z]/,"Password must include at least one uppercase letter").regex(/[0-9]/,"Password must include at least one number ")
+  })
+  const {register,handleSubmit,setError,formState:{errors,isSubmitting}} = useForm({resolver:zodResolver(schema)})
+  const navigate = useNavigate()
+  const onSubmit = async (data) => {
+    try{
+      const response = await api.post("/signup",data)
+      navigate("/home")
+    }catch(error){
+      if(error.response){
+        setError("root",{
+          message:error.response.data.message
+        })
+      }else if (error.request){
+        setError("root",{
+          message:"Server Error"
+        })
+      }else{
+        setError("root",{
+          error:error.message
+        })
+      }
+
+    }
+  }
   return (
     <div className={cn("flex flex-col gap-6 ", className)} {...props}>
       <Card className="bg-white border-borderPrimary ">
@@ -33,7 +66,7 @@ export function SignupForm({
           </CardDescription>
         </CardHeader>
         <CardContent className=" font-secondary text-primary">
-          <form>
+          <form onSubmit={handleSubmit(onSubmit)}>
             <div className="grid gap-6">
               <div className="flex flex-col gap-4">
                 <Button variant="outline" className="w-full">
@@ -52,22 +85,26 @@ export function SignupForm({
                     Username
                   </Label>
                   <Input
+                    {...register("username")}
                     id="username"
                     type="text"
                     placeholder="@yuv"
-                    required
+                    
                   />
+                  {errors.username && <AlertBox variant="destructive" message={errors.username.message} />}
                 </div>
                 <div className="grid gap-1">
                   <Label htmlFor="email" className="font-bold text-sm">
                     Email
                   </Label>
                   <Input
+                    {...register("email")}
                     id="email"
                     type="email"
                     placeholder="y@example.com"
-                    required
+                    
                   />
+                  {errors.email && <AlertBox variant="destructive" message={errors.email.message} />}
                 </div>
                 <div className="grid gap-1">
                   <div className="flex items-center">
@@ -75,13 +112,16 @@ export function SignupForm({
                       Password
                     </Label>
                   </div>
-                  <Input id="password" type="password" required />
+                  <Input {...register("password")} id="password" type="password"  />
+                  {errors.password && <AlertBox variant="destructive" message={errors.password.message} />}
                 </div>
+                {errors.root && <AlertBox variant="destructive" message={errors.root.message} />}
                 <Button
+                  disabled={isSubmitting}
                   type="submit"
                   className="w-full bg-primaryBlue font-bold text-white hover:bg-secondaryBlue  mt-2"
                 >
-                  Sign Up
+                  {isSubmitting ? "Signing Up" : "Sign Up"}
                 </Button>
               </div>
             </div>

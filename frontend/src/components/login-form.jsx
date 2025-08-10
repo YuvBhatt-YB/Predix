@@ -9,31 +9,43 @@ import {
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Link } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
 import { FcGoogle } from "react-icons/fc";
 import api from "../api/auth"
 import { useForm } from "react-hook-form"
 import z from "zod"
-
+import {zodResolver} from "@hookform/resolvers/zod"
+import AlertBox from "./Alerts/AlertBox"
 const schema = z.object({
   email:z.email(),
-  password:z.string().min(8)
+  password:z.string().min(8,"Password must be at least 8 characters long").regex(/[A-Z]/,"Password must contain at least one uppercase letter").regex(/[0-9]/,"Password must contain at least one number")
 })
 export function LoginForm({
   className,
   ...props
 }) {
-  const {register,handleSubmit,setError,formState: {errors,isSubmitting}} = useForm()
+  const {register,handleSubmit,setError,formState: {errors,isSubmitting}} = useForm({resolver: zodResolver(schema)})
+  const navigate = useNavigate()
   const onSubmit = async (data) => {
     try{
-      await new Promise((resolve) => setTimeout(resolve,2000))
-      console.log(data)
+      const response = await api.post("/login",data)
+        navigate("/home")
     }catch(error){
-      setError("root",{
-        message:"Wrong credentials"
-      })
+      if(error.response){
+        setError("root",{
+          message:error.response.data.message
+        })
+      }else if (error.request){
+        setError("root",{
+          message:'No response from Server'
+        })
+      }else{
+        setError("root",{
+          message:error.message
+        })
+      }
     }
-    //const response = await api.post("/login")
+    
   }
   return (
     <div className={cn("flex flex-col gap-6 ", className)} {...props}>
@@ -71,16 +83,14 @@ export function LoginForm({
                     Email
                   </Label>
                   <Input
-                    {...register("email",{
-                      required:"Email is required"
-                    })}
+                    {...register("email")}
                     id="email"
                     type="email"
                     name="email"
                     placeholder="y@example.com"
                     
                   />
-                  {errors.email && <p>{errors.email.message}</p>}
+                  {errors.email && <AlertBox message={errors.email.message} variant={"destructive"}  />}
                 </div>
                 <div className="grid gap-3">
                   <div className="flex items-center">
@@ -88,15 +98,10 @@ export function LoginForm({
                       Password
                     </Label>
                   </div>
-                  <Input {...register("password",{
-                    required:"Password is required",
-                    minLength:{
-                      value:8,
-                      message:"Password must include at least 8 characters"
-                    }
-                  })} id="password" name="password" type="password" />
-                  {errors.password && <p>{errors.password.message}</p>}
+                  <Input {...register("password")} id="password" name="password" type="password" />
+                  {errors.password && <AlertBox message={errors.password.message} variant={"destructive"}  />}
                 </div>
+                {errors.root && <AlertBox message={errors.root.message} variant={"destructive"}/>}
                 <Button
                   disabled={isSubmitting}
                   type="submit"
