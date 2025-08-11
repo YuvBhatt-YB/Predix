@@ -17,9 +17,8 @@ import z from "zod"
 import {zodResolver} from "@hookform/resolvers/zod"
 import AlertBox from "./Alerts/AlertBox"
 const schema = z.object({
-  email:z.email(),
-  password:z.string().min(8,"Password must be at least 8 characters long").regex(/[A-Z]/,"Password must contain at least one uppercase letter").regex(/[0-9]/,"Password must contain at least one number")
-})
+  email:z.email("Please Enter your Email ID"),
+  password:z.string("Please Enter your Password").min(8,"Password should be at least 8 characters long")})
 export function LoginForm({
   className,
   ...props
@@ -28,7 +27,9 @@ export function LoginForm({
   const navigate = useNavigate()
   const onSubmit = async (data) => {
     try{
-      const response = await api.post("/login",data)
+      const response = await api.post("/login",data,{
+        withCredentials:true
+      })
         navigate("/home")
     }catch(error){
       if(error.response){
