@@ -2,13 +2,13 @@ import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
 import { PrismaClient,Prisma } from "@prisma/client";
 import { verifyHashPassword } from "../services/verifyHashPassword";
-
+import {Strategy as GoogleStrategy} from "passport-google-oauth20"
+import { generateProfileImg } from "../services/generateProfileImg";
 const prisma = new PrismaClient()
 
 passport.use(
   new LocalStrategy({usernameField: "email", passwordField: "password"},async (email, password, done) => {
     try {
-        console.log(`${email} ${password}`)
       const user = await prisma.user.findUnique({
         where: { email: email },
       });
@@ -27,7 +27,8 @@ passport.use(
         id: user.id,
         email: user.email,
         username:user.username,
-        profileImg:user.profileImg
+        profileImg:user.profileImg,
+        createdAt:user.createdAt
       })
     } catch (error) {
       if (error instanceof Error) {
@@ -38,14 +39,73 @@ passport.use(
   })
 );
 
+passport.use(new GoogleStrategy({
+    clientID : process.env.GOOGLE_CLIENT_ID ?? "",
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
+    callbackURL: "http://www.example.com/auth/google/callback"
+  },
+  async function(accessToken, refreshToken, profile, done) {
+    try{
+      const email = profile.emails?.[0]?.value
+      if(!email){
+        throw new Error("Google Provider didn't return any email")
+      } 
+      const user = await prisma.user.findUnique({
+      where:{
+        email
+      }
+    })
+    if (!user) {
+      try{
+        const avatarURL = generateProfileImg(profile.displayName);
+        const user = await prisma.user.create({
+        data: {
+          username: profile.displayName,
+          email: email || "",
+          password: "",
+          profileImg: avatarURL,
+        },
+      });
+      return done(null,{
+          id: user.id,
+          email: user.email,
+          username: user.username,
+          profileImg: user.profileImg,
+          createdAt: user.createdAt,
+        })
+      }catch (error) {
+          if (
+            error instanceof Prisma.PrismaClientKnownRequestError &&
+            error.code === "P2002"
+          ) {
+            const target = error.meta?.target;
+      
+            if (Array.isArray(target)) {
+              if (target.includes("username")) {
+                return done(null,false,{ message: "Username aleady exists" });
+              }
+              if (target.includes("email")) {
+                return done(null,false,{ message: "Email already exists" });
+              }
+            }
+            return done(null,false,{ message: "Database Error" });
+          }
+          return done(null,false,{ message: "Server didn't respond" });
+        }
+      
+      
+    }
+    }catch(err){
+      return done(err)
+    }
+    
+  }
+));
 passport.serializeUser((user: any,done)=>{
-    console.log("Serialized user")
-    console.log(user)
     done(null,user.id)
 })
 
 passport.deserializeUser(async(id: string,done)=>{
-    console.log("Deserialized user")
     try{
         const user = await prisma.user.findUnique({
         where: { id: id },
@@ -55,7 +115,8 @@ passport.deserializeUser(async(id: string,done)=>{
         id: user.id,
         email: user.email,
         username:user.username,
-        profileImg:user.profileImg
+        profileImg:user.profileImg,
+        createdAt:user.createdAt
       })
     }catch(error){
         done(error,null)

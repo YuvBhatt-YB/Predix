@@ -1,9 +1,9 @@
 import { Request, Response } from "express";
-import { logInSchema, signUpSchema } from "../Schemas/auth";
+import {  signUpSchema } from "../Schemas/auth";
 import { generateProfileImg } from "../services/generateProfileImg";
 import { createHashedPassword } from "../services/createHashPassword";
 import { PrismaClient, Prisma } from "@prisma/client";
-import { verifyHashPassword } from "../services/verifyHashPassword";
+
 import passport from "passport";
 
 const prisma = new PrismaClient();
@@ -22,7 +22,15 @@ export const handleSignupUser = async (req: Request, res: Response) => {
         profileImg: avatarURL,
       },
     });
-    return res.send(user);
+    
+    req.login(user,(err)=>{
+      if(err){
+        return res.status(500).json({message:"Login after signup failed"})
+      }
+      return res.json({
+            message:"Logged in Successfully"
+        })
+    })
   } catch (error) {
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -57,9 +65,27 @@ export const handleLogInUser = async (req: Request, res: Response) => {
         }
 
         return res.json({
-            message:"Logged in Successfully",
-            user:req.user
+            message:"Logged in Successfully"
         })
     })
   })(req,res);
 };
+
+export const handleGettingUserData = async(req: Request,res: Response) => {
+    if(req.isAuthenticated()){
+        return res.json({user: req.user})
+    } else{
+        return res.json({user:undefined})
+    }
+}
+
+export const handleLogoutUser = async(req: Request,res: Response) => {
+
+  if(!req.user) return res.status(401).json({message:"No User Logged In"})
+
+  req.logOut((error)=>{
+    if(error) return res.status(400).json({message:"Logout Error"})
+  })
+
+  return res.status(200).json({message:"Logged Out Succesfully"})
+}

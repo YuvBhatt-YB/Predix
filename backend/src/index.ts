@@ -5,7 +5,9 @@ import authRoute from "./routes/auth"
 import cors from "cors"
 import session from "express-session"
 import passport from "passport"
+import dotenv from "dotenv"
 
+dotenv.config()
 const app = express()
 
 const PORT = 8000
@@ -18,9 +20,10 @@ app.use(cors({
 app.use(express.json())
 app.use(session({
     secret:"hello-world",
+    rolling:true,
     resave:false,
     saveUninitialized: false,
-    cookie:{httpOnly:true,secure:false,sameSite:"lax"}
+    cookie:{maxAge:60*60*1000,httpOnly:true,secure:false,sameSite:"lax"}
 }))
 app.use(passport.initialize())
 app.use(passport.session())
