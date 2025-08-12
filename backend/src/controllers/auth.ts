@@ -1,4 +1,4 @@
-import { Request, Response } from "express";
+import { NextFunction, Request, Response } from "express";
 import {  signUpSchema } from "../Schemas/auth";
 import { generateProfileImg } from "../services/generateProfileImg";
 import { createHashedPassword } from "../services/createHashPassword";
@@ -88,4 +88,21 @@ export const handleLogoutUser = async(req: Request,res: Response) => {
   })
 
   return res.status(200).json({message:"Logged Out Succesfully"})
+}
+
+export const handleGoogle = async(req: Request,res: Response,next: NextFunction) => {
+  passport.authenticate('google',(err: unknown, user: Express.User | false,info: {message?: string} )=> {
+    if(err) return  res.status(400).json({ message: "Internal Server Error" })
+    
+    if(!user){
+        return res.redirect(`${process.env.FRONTEND_URL}/signup/error=${encodeURIComponent(info?.message || "Google Auth Failed")}`)
+    }
+
+    req.logIn(user,(err) => {
+      if(err) return res.status(500).json(err)
+      
+        return res.redirect(`${process.env.FRONTEND_URL}/home`)
+    })
+
+  })(req,res,next)
 }

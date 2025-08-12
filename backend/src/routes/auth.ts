@@ -1,6 +1,7 @@
 import { Router } from "express";
-import { handleGettingUserData, handleLogInUser, handleLogoutUser, handleSignupUser } from "../controllers/auth";
+import { handleGettingUserData, handleGoogle, handleLogInUser, handleLogoutUser, handleSignupUser } from "../controllers/auth";
 import { validateLoginSchema } from "../middlewares/validateLoginSchema";
+import passport from "passport";
 
 
 
@@ -10,5 +11,6 @@ router.post("/signup",handleSignupUser)
 router.post("/login",validateLoginSchema,handleLogInUser)
 router.get("/me",handleGettingUserData)
 router.post("/logout",handleLogoutUser)
-
+router.get("/google",passport.authenticate("google",{scope:["profile","email"]}))
+router.get('/google/callback',handleGoogle)
 export default router

@@ -42,7 +42,7 @@ passport.use(
 passport.use(new GoogleStrategy({
     clientID : process.env.GOOGLE_CLIENT_ID ?? "",
     clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
-    callbackURL: "http://www.example.com/auth/google/callback"
+    callbackURL: "http://localhost:8000/auth/google/callback"
   },
   async function(accessToken, refreshToken, profile, done) {
     try{
@@ -56,9 +56,8 @@ passport.use(new GoogleStrategy({
       }
     })
     if (!user) {
-      try{
-        const avatarURL = generateProfileImg(profile.displayName);
-        const user = await prisma.user.create({
+      const avatarURL = generateProfileImg(profile.displayName);
+      const user = await prisma.user.create({
         data: {
           username: profile.displayName,
           email: email || "",
@@ -66,34 +65,21 @@ passport.use(new GoogleStrategy({
           profileImg: avatarURL,
         },
       });
-      return done(null,{
-          id: user.id,
-          email: user.email,
-          username: user.username,
-          profileImg: user.profileImg,
-          createdAt: user.createdAt,
-        })
-      }catch (error) {
-          if (
-            error instanceof Prisma.PrismaClientKnownRequestError &&
-            error.code === "P2002"
-          ) {
-            const target = error.meta?.target;
-      
-            if (Array.isArray(target)) {
-              if (target.includes("username")) {
-                return done(null,false,{ message: "Username aleady exists" });
-              }
-              if (target.includes("email")) {
-                return done(null,false,{ message: "Email already exists" });
-              }
-            }
-            return done(null,false,{ message: "Database Error" });
-          }
-          return done(null,false,{ message: "Server didn't respond" });
-        }
-      
-      
+      return done(null, {
+        id: user.id,
+        email: user.email,
+        username: user.username,
+        profileImg: user.profileImg,
+        createdAt: user.createdAt,
+      });
+    } else {
+      return done(null, {
+        id: user.id,
+        email: user.email,
+        username: user.username,
+        profileImg: user.profileImg,
+        createdAt: user.createdAt,
+      });
     }
     }catch(err){
       return done(err)
