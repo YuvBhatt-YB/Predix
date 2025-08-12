@@ -8,8 +8,10 @@ import { setSearchValue } from '@/state/searchValue/searchValue'
 const Markets = () => {
   const activeTab = useSelector((state) => state.activeTab.active)
   const searchVal = useSelector((state) => state.searchValue.searchVal)
+  const userData = useSelector((state) => state.user.userData)
   return (
     <div >
+      {JSON.stringify(userData)}
       <div className="max-width mx-auto px-2 lg:px-0">
         <p>{activeTab}</p>
         <p>{searchVal}</p>

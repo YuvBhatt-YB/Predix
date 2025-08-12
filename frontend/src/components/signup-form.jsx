@@ -16,6 +16,8 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import api from "../api/auth"
 import AlertBox from "./Alerts/AlertBox"
+import { useDispatch } from "react-redux"
+import { getUserData } from "@/state/user/user"
 
 export function SignupForm({
   className,
@@ -28,9 +30,11 @@ export function SignupForm({
   })
   const {register,handleSubmit,setError,formState:{errors,isSubmitting}} = useForm({resolver:zodResolver(schema)})
   const navigate = useNavigate()
+  const dispatch = useDispatch()
   const onSubmit = async (data) => {
     try{
-      const response = await api.post("/signup",data)
+      const response = await api.post("/signup",data,{withCredentials:true})
+      dispatch(getUserData())
       navigate("/home")
     }catch(error){
       if(error.response){

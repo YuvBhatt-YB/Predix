@@ -1,4 +1,4 @@
-import { StrictMode } from 'react'
+import { StrictMode, useEffect } from 'react'
 import { createRoot } from 'react-dom/client'
 import {createBrowserRouter, RouterProvider} from "react-router-dom"
 import './index.css'
@@ -9,8 +9,12 @@ import Home from './pages/Home'
 import Profile from './components/Home/Profile'
 import Markets from './components/Home/Markets'
 import MarketPage from './pages/MarketPage'
-import {Provider} from "react-redux"
+import {Provider, useDispatch} from "react-redux"
 import { store } from './state/store'
+import ProtectedRoute from './components/ProtectedRoute/ProtectedRoute'
+import { getUserData } from './state/user/user'
+
+import LoadingPage from './components/ui/LoadingPage'
 
 const router = createBrowserRouter([
   {
@@ -27,7 +31,7 @@ const router = createBrowserRouter([
   },
   {
     path:"/home",
-    element:<Home />,
+    element:<ProtectedRoute><Home /></ProtectedRoute>,
     children:[
       {
         index:true,
@@ -46,11 +50,19 @@ const router = createBrowserRouter([
   }
 ])
 
+function AppInitializer(){
+  const dispatch = useDispatch()
 
+  useEffect(()=> {
+    dispatch(getUserData())
+  },[dispatch])
+
+  return <RouterProvider router={router} />
+}
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <Provider store={store}><RouterProvider router={router} /></Provider>
+    <Provider store={store}><AppInitializer /></Provider>
     
   </StrictMode>,
 )

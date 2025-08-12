@@ -2,16 +2,19 @@ import React from 'react'
 import avatar from "../../assets/avatar.png"
 import UserTrades from './Profile/UserTrades'
 import Stats from './Profile/Stats'
+import { useSelector } from 'react-redux'
+import { profileDateFormatter } from '@/utils/profile-date-formatter'
 const Profile = () => {
+  const {username,profileImg,createdAt} = useSelector((state)=>state.user.userData)
   return (
     <div className=' max-width mx-auto px-2 lg:px-0'>
       <div >
         <div className=' border-b-1 flex justify-between items-center py-10'>
             <div className='  flex items-center gap-3 md:gap-9'>
-                <img src={avatar} alt="" srcset="" className=' rounded-small shadow-lg' />
+                <img src={profileImg} alt="" srcset="" className=' rounded-small shadow-lg w-[150px] h-[150px]' />
                 <div>
-                    <p className=' font-semibold text-3xl md:text-4xl text-primary'>yuvbhatt</p>
-                    <p className=' text-primaryGray text-sm md:text-[16px]'>Joined 12 July,2018</p>
+                    <p className=' font-semibold text-3xl md:text-4xl text-primary'>{username}</p>
+                    <p className=' text-primaryGray text-sm md:text-[16px] mt-1'>Joined At {profileDateFormatter(createdAt)}</p>
                 </div>
             </div>
             <div className=' hidden md:block'>

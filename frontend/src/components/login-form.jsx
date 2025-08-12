@@ -16,6 +16,8 @@ import { useForm } from "react-hook-form"
 import z from "zod"
 import {zodResolver} from "@hookform/resolvers/zod"
 import AlertBox from "./Alerts/AlertBox"
+import { useDispatch } from "react-redux"
+import { getUserData } from "@/state/user/user"
 const schema = z.object({
   email:z.email("Please Enter your Email ID"),
   password:z.string("Please Enter your Password").min(8,"Password should be at least 8 characters long")})
@@ -25,11 +27,13 @@ export function LoginForm({
 }) {
   const {register,handleSubmit,setError,formState: {errors,isSubmitting}} = useForm({resolver: zodResolver(schema)})
   const navigate = useNavigate()
+  const dispatch = useDispatch()
   const onSubmit = async (data) => {
     try{
       const response = await api.post("/login",data,{
         withCredentials:true
       })
+        dispatch(getUserData())
         navigate("/home")
     }catch(error){
       if(error.response){

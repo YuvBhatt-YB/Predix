@@ -3,7 +3,9 @@ import { CiWallet } from "react-icons/ci";
 import { Button } from "@/components/ui/button"
 import ProfileButton from './Navbar/ProfileButton';
 import { Link } from 'react-router-dom';
+
 const Navbar = () => {
+  
   return (
     
     <div>

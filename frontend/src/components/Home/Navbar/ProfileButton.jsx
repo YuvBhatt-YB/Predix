@@ -10,16 +10,30 @@ import {
 import { Button } from '@/components/ui/button';
 import { IoIosArrowDown } from "react-icons/io";
 import { CiWallet } from "react-icons/ci";
-import avatar from "../../../assets/avatar.png"
-import { Link } from 'react-router-dom';
+import api from "../../../api/auth"
+import { Link, useNavigate } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
+import { setUserData } from '@/state/user/user';
 const ProfileButton = () => {
+  const {profileImg} = useSelector((state)=>state.user.userData)
+  const dispatch = useDispatch()
+  const navigate = useNavigate()
+  const handleLogOut = async () => {
+    try{
+      const response = await api.post("/logout",{},{withCredentials:true})
+      dispatch(setUserData(undefined))
+      navigate("/")
+    }catch(error){
+      console.error("Logout Error",error)
+    }
+  }
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <div className=" md:px-2 py-1 rounded-small hover:bg-light cursor-pointer transition duration-200 ease-in-out">
           <div className=" flex items-center gap-2">
             <img
-              src={avatar}
+              src={profileImg}
               alt=""
               srcset=""
               className="w-[40px] h-[40px] rounded-small"
@@ -51,7 +65,7 @@ const ProfileButton = () => {
           <Button size="lg" className="rounded-small font-semibold bg-primaryBlue hover:bg-secondaryBlue w-full">Deposit</Button>
         </div>
         <DropdownMenuSeparator />
-        <DropdownMenuItem className="py-3">Log Out</DropdownMenuItem>
+        <DropdownMenuItem className="py-3" onClick={handleLogOut}>Log Out</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );
