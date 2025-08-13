@@ -11,7 +11,7 @@ const Markets = () => {
   const userData = useSelector((state) => state.user.userData)
   return (
     <div >
-      {JSON.stringify(userData)}
+      <p>{JSON.stringify(userData)}</p>
       <div className="max-width mx-auto px-2 lg:px-0">
         <p>{activeTab}</p>
         <p>{searchVal}</p>

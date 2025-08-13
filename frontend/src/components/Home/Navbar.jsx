@@ -3,9 +3,10 @@ import { CiWallet } from "react-icons/ci";
 import { Button } from "@/components/ui/button"
 import ProfileButton from './Navbar/ProfileButton';
 import { Link } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 
 const Navbar = () => {
-  
+  const userData = useSelector((state)=> state.user.userData)
   return (
     
     <div>
@@ -21,7 +22,7 @@ const Navbar = () => {
                 <p className="text-primary text-xl">
                   <CiWallet />
                 </p>
-                <p className=" text-darkGreen">$0.00</p>
+                <p className=" text-darkGreen">${userData.wallet.balance}</p>
               </div>
               <Button
                 size="lg"
