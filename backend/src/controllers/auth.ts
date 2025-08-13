@@ -5,6 +5,7 @@ import { createHashedPassword } from "../services/createHashPassword";
 import { PrismaClient, Prisma } from "@prisma/client";
 
 import passport from "passport";
+import { UserFromSession } from "../types/UserFromSession";
 
 const prisma = new PrismaClient();
 
@@ -20,7 +21,13 @@ export const handleSignupUser = async (req: Request, res: Response) => {
         email: parsed.email,
         password: hashedPassword,
         profileImg: avatarURL,
+        wallet:{
+          create:{
+            balance:0
+          }
+        }
       },
+      include:{wallet:true}
     });
     
     req.login(user,(err)=>{
@@ -73,7 +80,14 @@ export const handleLogInUser = async (req: Request, res: Response) => {
 
 export const handleGettingUserData = async(req: Request,res: Response) => {
     if(req.isAuthenticated()){
-        return res.json({user: req.user})
+      const loggedInUser = req.user as UserFromSession
+      const user = await prisma.user.findUnique({
+        where:{
+          id:loggedInUser.id
+        },
+        include:{wallet:true}
+      })
+        return res.json({user: user})
     } else{
         return res.json({user:undefined})
     }

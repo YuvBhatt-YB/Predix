@@ -28,7 +28,7 @@ passport.use(
         email: user.email,
         username:user.username,
         profileImg:user.profileImg,
-        createdAt:user.createdAt
+        createdAt:user.createdAt,
       })
     } catch (error) {
       if (error instanceof Error) {
@@ -63,7 +63,13 @@ passport.use(new GoogleStrategy({
           email: email || "",
           password: "",
           profileImg: avatarURL,
+          wallet:{
+            create:{
+              balance:0
+            }
+          }
         },
+        include:{wallet:true}
       });
       return done(null, {
         id: user.id,
@@ -102,7 +108,7 @@ passport.deserializeUser(async(id: string,done)=>{
         email: user.email,
         username:user.username,
         profileImg:user.profileImg,
-        createdAt:user.createdAt
+        createdAt:user.createdAt,
       })
     }catch(error){
         done(error,null)

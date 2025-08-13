@@ -9,11 +9,50 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum MarketStatus {
+  ACTIVE
+  RESOLVED
+  CLOSED 
+  CANCELLED
+}
+enum MarketResolution {
+  YES
+  NO
+  NULL
+}
+
 model User{
   id String @id @default(cuid())
   username String @unique
   email String @unique
   password String 
   profileImg String
+  wallet Wallet?
+  createdAt DateTime @default(now())
+}
+model Wallet {
+  id String @id @default(cuid())
+  balance Float
+  userID String @unique
+  user User @relation(fields: [userID],references: [id],onDelete: Cascade)
+  createdAt DateTime @default(now())
+}
+
+model Market {
+  id String @id @default(cuid())
+  title String @unique
+  category String 
+  type String @default("yes/no")
+  description String
+  image String
+  status MarketStatus @default(ACTIVE)
+  resolution MarketResolution @default(NULL)
+  initialPriceYes Float 
+  currentPriceYes Float
+  totalVolume Float
+  spread Float
+  yesShares BigInt
+  noShares BigInt
+  endTime DateTime 
   createdAt DateTime @default(now())
 }
