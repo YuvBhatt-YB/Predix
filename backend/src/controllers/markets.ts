@@ -35,3 +35,39 @@ export const handleCreateMarket = async (req: Request,res:Response) => {
     return res.status(400).json("Server didn't respond")
     }
 }
+
+export const handleGetMarkets = async (req: Request,res:Response) => {
+    const {category,search="",take=10,cursor} = req.query
+    
+    const where: any = {}
+
+    if(category && category !== "new" && typeof category === "string"){
+        where.category = category
+    }
+
+    if(typeof search == "string" && search.trim() != ""){
+        where.title={
+            contains:search,
+            mode:"insensitive",
+        }
+    }
+
+    const queryOptions: any = {
+        where,
+        orderBy:{createdAt : "desc"},
+        take:Number(take) +1
+    }
+    if(cursor && typeof cursor === "string"){
+        queryOptions.cursor = {id:cursor},
+        queryOptions.skip = 1
+    }
+
+    const markets = await prisma.market.findMany(queryOptions)
+    
+    let nextCursor: string|null = null
+
+    if(markets.length > Number(take)){
+
+    }
+    return res.json({markets:markets,queryOptions})
+}

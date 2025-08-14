@@ -51,8 +51,10 @@ model Market {
   currentPriceYes Float
   totalVolume Float
   spread Float
-  yesShares BigInt
-  noShares BigInt
+  yesShares Int
+  noShares Int
   endTime DateTime 
   createdAt DateTime @default(now())
+
+  @@index([createdAt])
 }
