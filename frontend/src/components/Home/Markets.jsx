@@ -4,14 +4,18 @@ import Search from './ContentPage/Search'
 import MarketModal from './ContentPage/MarketModal'
 import { useDispatch, useSelector } from 'react-redux'
 import { setSearchValue } from '@/state/searchValue/searchValue'
+import { Button } from '../ui/button'
+import useMarketData from '@/hooks/useMarketData'
 
 const Markets = () => {
-  const activeTab = useSelector((state) => state.activeTab.active)
-  const searchVal = useSelector((state) => state.searchValue.searchVal)
+  const activeTab = useSelector((state) => state.markets.category)
+  const searchVal = useSelector((state) => state.markets.searchQuery)
   const userData = useSelector((state) => state.user.userData)
+  const {fetchMarkets} = useMarketData()
   return (
     <div >
       <p>{JSON.stringify(userData)}</p>
+      <Button onClick={fetchMarkets}>Fetch Markets</Button>
       <div className="max-width mx-auto px-2 lg:px-0">
         <p>{activeTab}</p>
         <p>{searchVal}</p>

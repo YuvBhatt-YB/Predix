@@ -1,4 +1,5 @@
-import { setActiveTab } from '@/state/activeTab/activeTab'
+
+import { setCategory, setSearchQuery } from '@/state/markets/markets'
 import { setSearchValue } from '@/state/searchValue/searchValue'
 import React from 'react'
 import { useDispatch, useSelector } from 'react-redux'
@@ -17,7 +18,7 @@ const components = [
   {title:"Tennis",tab:"tennis"}
 ]
 const Menu = () => {
-  const activeTab = useSelector((state)=>state.activeTab.active)
+  const activeTab = useSelector((state)=>state.markets.category)
   const dispatch = useDispatch()
   return (
     <div className='border-b-1 '>
@@ -33,8 +34,8 @@ const Menu = () => {
                   : "text-secondaryGray"
               }`}
               onClick={() => {
-                dispatch(setActiveTab(component.tab))
-                dispatch(setSearchValue(""))
+                dispatch(setCategory(component.tab))
+                dispatch(setSearchQuery(""))
               }}
             >
               <p>{component.title}</p>
