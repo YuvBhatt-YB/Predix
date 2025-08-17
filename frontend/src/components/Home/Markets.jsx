@@ -6,12 +6,15 @@ import { useDispatch, useSelector } from 'react-redux'
 import { setSearchValue } from '@/state/searchValue/searchValue'
 import { Button } from '../ui/button'
 import useMarketData from '@/hooks/useMarketData'
+import NotFound from '../Not Found/NotFound'
 
 const Markets = () => {
   const activeTab = useSelector((state) => state.markets.category)
   const searchVal = useSelector((state) => state.markets.searchQuery)
   const userData = useSelector((state) => state.user.userData)
+  const {markets,loading,nextCursor,searchQuery,category} = useSelector((state)=> state.markets)
   const {fetchMarkets} = useMarketData()
+  
   return (
     <div >
       <p>{JSON.stringify(userData)}</p>
@@ -22,28 +25,13 @@ const Markets = () => {
         <div className="w-full">
           <Search />
         </div>
-        <div className="  w-full grid md:grid-cols-2 lg:grid-cols-3 gap-3 py-4">
-          <MarketModal />
-          <MarketModal />
-          <MarketModal />
-          <MarketModal />
-          <MarketModal />
-          <MarketModal />
-          <MarketModal />
-          <MarketModal />
-          <MarketModal />
-          <MarketModal />
-          <MarketModal />
-          <MarketModal />
-          <MarketModal />
-          <MarketModal />
-          <MarketModal />
-          <MarketModal />
-          <MarketModal />
-          <MarketModal />
+        {markets && markets.length > 0 ? (<div className="  w-full grid md:grid-cols-2 lg:grid-cols-3 gap-3 py-4">
+          {markets.map((market,index) => (
+            <MarketModal key={index} marketDetails={market} />
+          ))}
+        </div>): <NotFound text="No Markets Found" />}
         </div>
       </div>
-    </div>
   );
 }
 

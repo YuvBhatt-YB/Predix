@@ -26,9 +26,14 @@ const marketSlice = createSlice({
         },
         setSearchQuery:(state,action)=>{
             state.searchQuery = action.payload
+        },
+        resetMarkets:(state)=>{
+            state.markets = [],
+            state.nextCursor = null,
+            state.loading = false
         }
     }
 })
 
-export const {setLoading,setMarkets,setNextCursor,setCategory,setSearchQuery} = marketSlice.actions
+export const {setLoading,setMarkets,setNextCursor,setCategory,setSearchQuery,resetMarkets} = marketSlice.actions
 export default marketSlice.reducer
