@@ -2,7 +2,7 @@ import { createSlice } from "@reduxjs/toolkit"
 
 const initialState = {
     markets : [],
-    nextCursor : null,
+    nextCursor : undefined,
     loading: false,
     category: "new",
     searchQuery : ""
@@ -16,6 +16,9 @@ const marketSlice = createSlice({
             state.loading = action.payload
         },
         setMarkets: (state,action) => {
+            state.markets = action.payload
+        },
+        appendMarkets: (state,action) => {
             state.markets = [...state.markets,...action.payload]
         },
         setNextCursor:(state,action)=>{
@@ -29,11 +32,11 @@ const marketSlice = createSlice({
         },
         resetMarkets:(state)=>{
             state.markets = [],
-            state.nextCursor = null,
-            state.loading = false
+            state.loading = false,
+            state.nextCursor = undefined
         }
     }
 })
 
-export const {setLoading,setMarkets,setNextCursor,setCategory,setSearchQuery,resetMarkets} = marketSlice.actions
+export const {setLoading,setMarkets,setNextCursor,setCategory,setSearchQuery,resetMarkets,appendMarkets} = marketSlice.actions
 export default marketSlice.reducer
