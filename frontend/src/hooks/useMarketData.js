@@ -5,8 +5,10 @@ import { useEffect } from "react"
 export default function useMarketData(){
     const {loading,category,searchQuery,nextCursor,markets} = useSelector((state)=>state.markets)
     const dispatch = useDispatch()
-    const fetchMarkets = async({reset = false}) => {
+    const fetchMarkets = async(options = {}) => {
+        const {reset = false} = options
         if(!reset && nextCursor === null) return
+        if(loading) return
         dispatch(setLoading(true))
         try{
             
@@ -21,7 +23,7 @@ export default function useMarketData(){
             if(reset){
                 dispatch(setMarkets(response.data.markets))
             }else{
-                dispatch(appendMarkets(response.data.maarkets))
+                dispatch(appendMarkets(response.data.markets))
             }
             
             dispatch(setNextCursor(response.data.nextCursor))
@@ -41,14 +43,14 @@ export default function useMarketData(){
 
     useEffect(()=>{
         const handleScroll = () => {
-            if(window.innerHeight + window.scrollY >= document.body.offsetHeight -500){
-                console.log("You are bottom of page")
+            if(window.innerHeight + window.scrollY >= document.body.offsetHeight && !loading && nextCursor){
+                fetchMarkets()
             }
         }
         window.addEventListener("scroll",handleScroll)
         return () => window.removeEventListener("scroll",handleScroll)
     },
-    [])
+    [loading,nextCursor,category,searchQuery])
     return {
         fetchMarkets
     }

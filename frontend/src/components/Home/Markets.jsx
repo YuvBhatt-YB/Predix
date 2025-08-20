@@ -20,7 +20,6 @@ const Markets = () => {
   
   return (
     <div >
-      <p>{JSON.stringify(Markets)}</p>
       <Button onClick={fetchMarkets}>Fetch Markets</Button>
       <div className="max-width mx-auto px-2 lg:px-0">
         <p>{activeTab}</p>

@@ -14,6 +14,7 @@ const Search = () => {
         <p className='text-xl'><CiSearch /></p>
         <Input type="text" placeholder="Search" className="text-primary shadow-none border-none rounded-none focus:border-none focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 md:py-6" onChange={(e)=>dispatch(setSearchQuery(e.target.value))}  value={searchVal} />
         <p className='text-xl'><HiMiniSlash /></p>
+        <p>This is a search button</p>
     </div>
   )
 }
