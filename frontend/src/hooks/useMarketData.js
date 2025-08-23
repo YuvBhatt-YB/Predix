@@ -2,9 +2,11 @@ import { appendMarkets, resetMarkets, setLoading, setMarkets, setNextCursor } fr
 import { useDispatch, useSelector } from "react-redux"
 import api from "../api/markets"
 import { useEffect } from "react"
+import { useLocation } from "react-router-dom"
 export default function useMarketData(){
     const {loading,category,searchQuery,nextCursor,markets} = useSelector((state)=>state.markets)
     const dispatch = useDispatch()
+    const location = useLocation()
     const fetchMarkets = async(options = {}) => {
         const {reset = false} = options
         if(!reset && nextCursor === null) return
@@ -16,7 +18,7 @@ export default function useMarketData(){
             query.append("category", category);
             if (searchQuery) query.append("search", searchQuery);
             query.append("take", "10");
-            if (nextCursor) query.append("cursor", nextCursor);
+            if (nextCursor !== null) query.append("cursor", nextCursor);
 
             console.log(`/${query.toString()}`);
             const response = await api.get(`/?${query.toString()}`)
@@ -39,8 +41,8 @@ export default function useMarketData(){
     useEffect(() => {
       dispatch(resetMarkets())
       fetchMarkets({reset: true});
-    }, [category,searchQuery]);
-
+    }, [category,searchQuery,location.key]);
+    
     useEffect(()=>{
         const handleScroll = () => {
             if(window.innerHeight + window.scrollY >= document.body.offsetHeight && !loading && nextCursor){

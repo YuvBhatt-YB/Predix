@@ -2,7 +2,7 @@ import { createSlice } from "@reduxjs/toolkit"
 
 const initialState = {
     markets : [],
-    nextCursor : undefined,
+    nextCursor : null,
     loading: false,
     category: "new",
     searchQuery : ""
@@ -33,7 +33,7 @@ const marketSlice = createSlice({
         resetMarkets:(state)=>{
             state.markets = [],
             state.loading = false,
-            state.nextCursor = undefined
+            state.nextCursor = null
         }
     }
 })
