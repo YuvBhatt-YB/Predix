@@ -37,7 +37,8 @@ export const handleCreateMarket = async (req: Request,res:Response) => {
 }
 
 export const handleGetMarkets = async (req: Request,res:Response) => {
-    const {category,search="",take=10,cursor} = req.query
+    try{
+        const {category,search="",take=10,cursor} = req.query
     
     const where: any = {}
 
@@ -67,7 +68,27 @@ export const handleGetMarkets = async (req: Request,res:Response) => {
     let nextCursor: string|null = null
 
     if(markets.length > Number(take)){
-
+        const nextMarket = markets.pop()
+        nextCursor = nextMarket!.id
     }
-    return res.json({markets:markets,queryOptions})
+    return res.json({markets:markets,queryOptions,nextCursor})
+    }catch(error){
+        console.error(error)
+        return res.status(500).json({message:"Something Went Wrong"})
+    }
+}
+
+export const handleGetMarket = async (req:Request,res:Response) => {
+    const marketId: string | undefined = req.params.marketId
+    if(!marketId){
+        return res.status(400).json({message:"No Market ID found"})
+    }
+    const marketDetails = await prisma.market.findUnique({
+        where:{
+            id:marketId
+        }
+    })
+    console.log(marketId)
+    return res.status(200).json({marketDetails:marketDetails})
+    
 }
