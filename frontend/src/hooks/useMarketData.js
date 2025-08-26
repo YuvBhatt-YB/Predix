@@ -18,7 +18,7 @@ export default function useMarketData(){
             query.append("category", category);
             if (searchQuery) query.append("search", searchQuery);
             query.append("take", "10");
-            if (nextCursor !== null) query.append("cursor", nextCursor);
+            if (nextCursor !== null && !reset) query.append("cursor", nextCursor);
 
             console.log(`/${query.toString()}`);
             const response = await api.get(`/?${query.toString()}`)
@@ -40,9 +40,8 @@ export default function useMarketData(){
     }
     useEffect(() => {
       dispatch(resetMarkets())
-      fetchMarkets({reset: true});
+      fetchMarkets({reset:true})
     }, [category,searchQuery,location.key]);
-    
     useEffect(()=>{
         const handleScroll = () => {
             if(window.innerHeight + window.scrollY >= document.body.offsetHeight && !loading && nextCursor){

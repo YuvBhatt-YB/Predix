@@ -43,7 +43,7 @@ const router = createBrowserRouter([
         element:<Profile />
       },
       {
-        path:":id",
+        path:":marketId",
         element:<MarketPage />
       }
     ]

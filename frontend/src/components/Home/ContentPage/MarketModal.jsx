@@ -10,7 +10,7 @@ const MarketModal = ({marketDetails}) => {
     const [progress,setProgress] = useState(currPrice)
     const navigate = useNavigate()
     const handleClick = () => {[
-      navigate('/home/123')
+      navigate(`/home/${marketDetails.id}`)
     ]}
   return (
     <div className=" border-1 font-secondar p-2 rounded-small border-borderPrimary bg-white shadow-md" >
@@ -21,7 +21,7 @@ const MarketModal = ({marketDetails}) => {
         </div>
         <div className=' flex gap-2 items-center'>
           <img src={marketDetails.image} alt="" srcset="" className='w-[30px] h-[30px] rounded-small' />
-          <Link to="/home/1234" className=' font-semibold text-primary hover:underline hover:underline-offset-2 hover:decoration-2 leading-4.5'>{marketDetails.title}</Link>
+          <Link to={`/home/${marketDetails.id}`} className=' font-semibold text-primary hover:underline hover:underline-offset-2 hover:decoration-2 leading-4.5'>{marketDetails.title}</Link>
         </div>
         <div className=' w-full flex gap-2 mt-4'>
             <Button onClick={handleClick}  size="lg" className="flex-1/2 text-darkGreen bg-lightGreen rounded-small hover:bg-darkGreen hover:text-white transition duration-200 ease-in-out cursor-pointer"><FaAnglesUp /> Buy Yes</Button>

@@ -4,14 +4,27 @@ import DisplayChart from '@/components/MarketPage/DisplayChart'
 import Orderbook from '@/components/MarketPage/Orderbook'
 import Trade from '@/components/MarketPage/Trade'
 
-import React from 'react'
-
+import React, { useEffect, useState } from 'react'
+import { useParams } from 'react-router-dom'
+import api from "../api/markets"
 const MarketPage = () => {
+  const {marketId} = useParams()
+  const [marketData,setMarketData] = useState({})
+  useEffect(()=>{
+    const fetchMarketData = async () => {
+      const query = `/${marketId}`
+      console.log(query)
+      const response = await api.get(`/${marketId}`)
+      setMarketData(response.data.marketDetails)
+      console.log(response)
+    }
+    fetchMarketData()
+  },[])
   return (
     <div className=" max-width mx-auto px-2 lg:px-0 ">
       <div className="  lg:flex lg:justify-between lg:items-start gap-3 py-6 ">
         <div className="flex-1">
-          <DisplayChart />
+          <DisplayChart marketData={marketData} />
           <div className=' lg:hidden'>
             <Trade />
           </div>
