@@ -2,11 +2,15 @@ import React from 'react'
 import { CiWallet } from "react-icons/ci";
 import { Button } from "@/components/ui/button"
 import ProfileButton from './Navbar/ProfileButton';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate,  } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 
 const Navbar = () => {
   const userData = useSelector((state)=> state.user.userData)
+  const navigate = useNavigate()
+  const handleNavigateFunds = () => {
+    navigate(`/funds`)
+  }
   return (
     
     <div>
@@ -27,6 +31,7 @@ const Navbar = () => {
               <Button
                 size="lg"
                 className="rounded-small font-semibold bg-primaryBlue hover:bg-secondaryBlue"
+                onClick ={handleNavigateFunds}
               >
                 Deposit
               </Button>

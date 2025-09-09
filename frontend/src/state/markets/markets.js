@@ -4,6 +4,7 @@ const initialState = {
     markets : [],
     nextCursor : null,
     loading: false,
+    debouncedLoading:false,
     category: "new",
     searchQuery : ""
 }
@@ -14,6 +15,9 @@ const marketSlice = createSlice({
     reducers:{
         setLoading: (state,action) => {
             state.loading = action.payload
+        },
+        setDebouncedLoading: (state,action)=>{
+            state.debouncedLoading = action.payload
         },
         setMarkets: (state,action) => {
             state.markets = action.payload
@@ -38,5 +42,5 @@ const marketSlice = createSlice({
     }
 })
 
-export const {setLoading,setMarkets,setNextCursor,setCategory,setSearchQuery,resetMarkets,appendMarkets} = marketSlice.actions
+export const {setLoading,setMarkets,setNextCursor,setCategory,setSearchQuery,resetMarkets,appendMarkets,setDebouncedLoading} = marketSlice.actions
 export default marketSlice.reducer

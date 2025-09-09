@@ -27,6 +27,9 @@ const ProfileButton = () => {
       console.error("Logout Error",error)
     }
   }
+  const handleNavigateFunds = () => {
+    navigate(`/funds`)
+  }
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -62,7 +65,7 @@ const ProfileButton = () => {
             </p>
             <p className=" text-darkGreen">$0.00</p>
           </div>
-          <Button size="lg" className="rounded-small font-semibold bg-primaryBlue hover:bg-secondaryBlue w-full">Deposit</Button>
+          <Button size="lg" className="rounded-small font-semibold bg-primaryBlue hover:bg-secondaryBlue w-full" onClick={handleNavigateFunds}>Deposit</Button>
         </div>
         <DropdownMenuSeparator />
         <DropdownMenuItem className="py-3" onClick={handleLogOut}>Log Out</DropdownMenuItem>

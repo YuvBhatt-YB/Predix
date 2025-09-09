@@ -15,6 +15,7 @@ import ProtectedRoute from './components/ProtectedRoute/ProtectedRoute'
 import { getUserData } from './state/user/user'
 
 import LoadingPage from './components/ui/LoadingPage'
+import Funds from './pages/Funds'
 
 const router = createBrowserRouter([
   {
@@ -47,6 +48,10 @@ const router = createBrowserRouter([
         element:<MarketPage />
       }
     ]
+  },
+  {
+    path:"/funds",
+    element:<ProtectedRoute><Funds /></ProtectedRoute>
   }
 ])
 
