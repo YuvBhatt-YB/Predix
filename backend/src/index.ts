@@ -3,6 +3,7 @@ import express, { Request,Response } from "express"
 import "./passport/passportConfig"
 import authRoute from "./routes/auth"
 import marketsRoute from "./routes/markets"
+import fundsRoute from "./routes/funds"
 import cors from "cors"
 import session from "express-session"
 import passport from "passport"
@@ -34,5 +35,6 @@ app.get("/",(request: Request,response: Response)=>{
 
 app.use("/auth",authRoute)
 app.use("/markets",marketsRoute)
+app.use("/funds",fundsRoute)
 
 app.listen(PORT,(): void=>{console.log(`Server is Running at PORT ${PORT}`)})

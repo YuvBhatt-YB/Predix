@@ -2,17 +2,17 @@ import { NextFunction, Request, Response } from "express";
 import {  signUpSchema } from "../Schemas/auth";
 import { generateProfileImg } from "../services/generateProfileImg";
 import { createHashedPassword } from "../services/createHashPassword";
-import { PrismaClient, Prisma } from "@prisma/client";
-
+import { Prisma } from "@prisma/client";
+import { ZodError } from "zod";
 import passport from "passport";
 import { UserFromSession } from "../types/UserFromSession";
+import prisma from "../prisma";
 
-const prisma = new PrismaClient();
+
 
 export const handleSignupUser = async (req: Request, res: Response) => {
   try {
     const parsed = signUpSchema.parse(req.body);
-
     const avatarURL = generateProfileImg(parsed.username);
     const hashedPassword = await createHashedPassword(parsed.password);
     const user = await prisma.user.create({
@@ -38,7 +38,11 @@ export const handleSignupUser = async (req: Request, res: Response) => {
             message:"Logged in Successfully"
         })
     })
-  } catch (error) {
+  } catch (error: any) {
+    console.error(error)
+    if(error instanceof ZodError){
+      return res.status(400).json({message:error.issues[0]?.message })
+    }
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
       error.code === "P2002"

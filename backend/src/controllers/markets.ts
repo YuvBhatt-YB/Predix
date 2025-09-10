@@ -1,8 +1,9 @@
 import { Request, Response } from "express";
 import { marketSchema } from "../Schemas/markets";
-import { PrismaClient,Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
+import prisma from "../prisma";
 
-const prisma = new PrismaClient()
+
 
 export const handleCreateMarket = async (req: Request,res:Response) => {
     try{
