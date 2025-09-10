@@ -10,13 +10,13 @@ const Funds = () => {
         navigate(`/home`)
     }
   return (
-    <div className=' w-full max-width mx-auto '>
+    <div className=' w-full max-width mx-auto my-4 '>
       <div>
-        <Button variant="secondary" size="icon" className="size-8" onClick={handleBack}>
+        <Button variant="secondary" size="icon" className="size-8 mx-2 lg:mx-0" onClick={handleBack}>
             <IoIosArrowBack />
         </Button>
       </div>
-      <div className=' border-2'>
+      <div className='  mt-4'>
         <FundsContentModel />
       </div>
     </div>

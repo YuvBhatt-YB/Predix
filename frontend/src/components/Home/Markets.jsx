@@ -10,13 +10,8 @@ import NotFound from '../Not Found/NotFound'
 import Loading from '../ui/Loading'
 
 const Markets = () => {
-  const activeTab = useSelector((state) => state.markets.category)
-  const searchVal = useSelector((state) => state.markets.searchQuery)
-  const userData = useSelector((state) => state.user.userData)
-  
-  const {loading,markets,category,debouncedLoading} = useSelector((state)=> state.markets)
-  const Markets = useSelector((state)=> state.markets)
-  const {fetchMarkets,loaderRef} = useMarketData()
+  const {loading,markets,debouncedLoading} = useSelector((state)=> state.markets)
+  const {loaderRef} = useMarketData()
   
   return (
     <div >
