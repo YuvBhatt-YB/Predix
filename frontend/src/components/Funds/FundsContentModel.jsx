@@ -15,12 +15,12 @@ import PaymentButton from './PaymentButton';
 import AddFunds from './AddFunds';
 import Transactions from './Transactions';
 import { useSelector } from 'react-redux';
+import { formatAmount } from '@/utils/amount';
 const FundsContentModel = () => {
   const {username,wallet} = useSelector((state)=>state.user.userData)
   return (
     <div className="  px-2 lg:px-0 py-6 ">
-      {username}
-      {JSON.stringify(wallet)}
+      
       <div>
         <Alert className="max-lg:flex max-lg:flex-col max-lg:gap-2 ">
           <MdAttachMoney />
@@ -46,9 +46,8 @@ const FundsContentModel = () => {
             <p className=" text-small leading-3 text-primaryGray">
               Current Balance
             </p>
-            <p className=" font-semibold text-2xl text-primary">${wallet.balance}</p>
+            <p className=" font-semibold text-2xl text-primary">{formatAmount(wallet.balance)}</p>
           </div>
-          
         </div>
         <AddFunds />
         <div className=' mt-6 '>
