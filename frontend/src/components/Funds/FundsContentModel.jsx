@@ -18,6 +18,7 @@ import { useSelector } from 'react-redux';
 import { formatAmount } from '@/utils/amount';
 const FundsContentModel = () => {
   const {username,wallet} = useSelector((state)=>state.user.userData)
+  
   return (
     <div className="  px-2 lg:px-0 py-6 ">
       

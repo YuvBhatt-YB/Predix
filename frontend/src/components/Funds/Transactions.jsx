@@ -8,20 +8,20 @@ const Transactions = () => {
     const {wallet} = useSelector((state)=>state.user.userData)
     const [transactions,setTransactions] = useState([])
     const[loading,setLoading] = useState(false)
+    const fetchTransactions = async () => {
+      setLoading(true);
+      try {
+        const response = await api.get(`/transactions/${wallet.id}`);
+        setTransactions(response.data.transactions);
+      } catch (error) {
+        console.error("Error fetching transactions", error);
+        setTransactions([]);
+      } finally {
+        setLoading(false);
+      }
+    };
     useEffect(()=>{
-        const fetchTransactions = async() => {
-            setLoading(true)
-            try{
-                const response = await api.get(`/transactions/${wallet.id}`)
-                setTransactions(response.data.transactions)
-            }catch(error){
-                console.error("Error fetching transactions",error)
-                setTransactions([])
-            }finally{
-                setLoading(false)
-            }
-            
-        }
+        
         fetchTransactions()
         console.log("Transaction Mounted")
     },[])
@@ -36,7 +36,7 @@ const Transactions = () => {
         {loading ? (
           <div className=' w-full flex items-center justify-center'><Loading /></div>
         ) : transactions && transactions.length > 0 ? (
-          <div>
+          <div className=' max-h-82 overflow-y-auto custom-scrollbar'>
             {transactions.map((transaction) => (
               <TransactionModel
                 key={transaction.id}

@@ -4,11 +4,14 @@ import { Input } from "@/components/ui/input"
 import { formatAmount, parseAmount } from '@/utils/amount'
 import AlertBox from '../Alerts/AlertBox'
 import api from "../../api/funds"
-import { useSelector } from 'react-redux'
+import { useDispatch, useSelector } from 'react-redux'
+import { getUserData } from '@/state/user/user'
 const AddFunds = () => {
   const [amount,setAmount] = useState("")
   const [error,setError] = useState("")
+  const [isSubmitting,setIsSubmitting] = useState(false)
   const {wallet} = useSelector((state) => state.user.userData)
+  const disptach = useDispatch()
   const handleSetAmount = (amount) => {
     const value = amount.replace(/[^0-9.]/g,"")
     const parts = amount.split(".")
@@ -26,11 +29,15 @@ const AddFunds = () => {
       amount:parsedAmount
     }
     try{
+      setIsSubmitting(true)
       const response = await api.post("/deposit",data)
+      disptach(getUserData())
       setAmount("")
       setError("")
     }catch(error){
       setError(error.response.data.message || "Something went wrong")
+    }finally{
+      setIsSubmitting(false)
     }
     console.log(parsedAmount)
   }
@@ -45,11 +52,12 @@ const AddFunds = () => {
           onChange={(e) => handleSetAmount(e.target.value)}
         />
         <Button
+          disabled={isSubmitting}
           type="submit"
           className="max-md:w-full rounded-small bg-primaryBlue hover:bg-secondaryBlue"
           onClick={handleDeposit}
         >
-          Deposit Amount
+          {isSubmitting ? "Depositing Money" : "Deposit Amount"}
         </Button>
       </div>
       <div className='inline-block mt-1'>
