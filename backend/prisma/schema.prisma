@@ -67,7 +67,20 @@ model Market {
   yesShares Int
   noShares Int
   endTime DateTime 
+  comments Comment[]
   createdAt DateTime @default(now())
 
   @@index([createdAt])
+}
+
+model Comment {
+  id String @id @default(uuid())
+  marketId String
+  username String
+  userProfileImg String
+  text String
+  market Market @relation(fields: [marketId],references: [id],onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@index([marketId,createdAt])
 }

@@ -31,7 +31,6 @@ export const handleDepositFunds = async(req: Request,res: Response) => {
                 }
             })
         ])
-        console.log(wallet)
         return res.json({message:`Deposited Amount ${amount} to Wallet Id ${walletId}` })
     }catch(error: any){
         console.log(error)
