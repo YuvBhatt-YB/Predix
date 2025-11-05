@@ -15,9 +15,26 @@ enum MarketStatus {
   CLOSED 
   CANCELLED
 }
+enum OrderType {
+  BUY
+  SELL
+}
+enum OrderOutcome {
+  YES
+  NO
+}
+enum OrderStatus {
+  OPEN
+  MATCHED
+  CANCELLED
+}
 enum TransactionType{
   CREDIT
   DEBIT
+  TRADE_LOCK
+  TRADE_RELEASE
+  TRADE_PAYOUT
+  LOSS
 }
 enum MarketResolution {
   YES
@@ -32,11 +49,16 @@ model User{
   password String 
   profileImg String
   wallet Wallet?
+  orders Order[]
+  holdings Holdings[]
+  buyTrades Trade[] @relation("Buyer")
+  sellTrades Trade[] @relation("Seller")
   createdAt DateTime @default(now())
 }
 model Wallet {
   id String @id @default(cuid())
   balance Float
+  locked Float @default(0)
   userID String @unique
   user User @relation(fields: [userID],references: [id],onDelete: Cascade)
   transactions Transaction[]
@@ -50,6 +72,21 @@ model Transaction {
   walletId String
   wallet Wallet @relation(fields: [walletId],references: [id],onDelete: Cascade)
   createdAt DateTime @default(now())
+}
+
+model Holdings {
+  id String @id @default(uuid())
+  shares Float
+  avgPrice Float
+  userId String
+  marketId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId],references: [id],onDelete: Cascade)
+  market Market @relation(fields:[marketId],references: [id],onDelete: Cascade)
+
+  @@unique([userId,marketId])
 }
 model Market {
   id String @id @default(cuid())
@@ -68,6 +105,9 @@ model Market {
   noShares Int
   endTime DateTime 
   comments Comment[]
+  orders Order[]
+  trades Trade[]
+  holdings Holdings[]
   createdAt DateTime @default(now())
 
   @@index([createdAt])
@@ -83,4 +123,44 @@ model Comment {
   createdAt DateTime @default(now())
 
   @@index([marketId,createdAt])
+}
+model Order {
+  id String @id @default(uuid())
+  userId String
+  marketId String
+  type OrderType
+  outcome OrderOutcome
+  quantity Float @default(0)
+  price Float @default(0)
+  status OrderStatus @default(OPEN)
+  user User @relation(fields: [userId],references: [id],onDelete: Cascade)
+  market Market @relation(fields: [marketId],references: [id],onDelete: Cascade)
+  buyOrders Trade[] @relation("BuyOrder")
+  sellOrders Trade[] @relation("SellOrder")
+
+
+  createdAt DateTime @default(now())
+
+  @@index([marketId,createdAt])
+  @@index([userId,createdAt])
+}
+
+model Trade {
+  id String @id @default(uuid())
+  marketId String
+  buyOrderId String
+  sellOrderId String
+  buyerId String
+  sellerId String
+  outcome OrderOutcome
+  price Float
+  quantity Float
+
+  market Market @relation(fields: [marketId],references: [id])
+  buyOrder Order @relation("BuyOrder",fields: [buyOrderId],references: [id])
+  sellOrder Order @relation("SellOrder",fields: [sellOrderId],references: [id])
+  buyer User @relation("Buyer",fields: [buyerId],references: [id])
+  seller User @relation("Seller",fields: [sellerId],references: [id])
+
+  createdAt DateTime @default(now())
 }

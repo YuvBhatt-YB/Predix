@@ -5,6 +5,7 @@ import authRoute from "./routes/auth"
 import marketsRoute from "./routes/markets"
 import fundsRoute from "./routes/funds"
 import commentsRoute from "./routes/comment"
+import tradeRoute from "./routes/trade"
 import cors from "cors"
 import http from "http"
 import session from "express-session"
@@ -45,7 +46,7 @@ app.use("/auth",authRoute)
 app.use("/markets",marketsRoute)
 app.use("/funds",fundsRoute)
 app.use("/comment",commentsRoute)
-
+app.use("/trade",tradeRoute)
 
 registerCommentHandlers(io)
 server.listen(PORT,(): void=>{console.log(`Server is Running at PORT ${PORT}`)})
