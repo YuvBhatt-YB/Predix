@@ -8,6 +8,7 @@ import React, { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import api from "../api/markets"
 import { useSelector } from 'react-redux'
+import Loading from '@/components/ui/Loading'
 const MarketPage = () => {
   const {marketId} = useParams()
   const {profileImg} = useSelector((state)=>state.user.userData)
@@ -24,20 +25,21 @@ const MarketPage = () => {
   },[])
   return (
     <div className=" max-width mx-auto px-2 lg:px-0 ">
-      <p>{marketId}</p>
-      <p>{profileImg}</p>
       <div className="  lg:flex lg:justify-between lg:items-start gap-3 py-6 ">
         <div className="flex-1">
-          <DisplayChart marketData={marketData} />
+          {marketData ? (<DisplayChart marketData={marketData} />): (<Loading />)}
+          
           <div className=' lg:hidden'>
-            <Trade />
+            {marketData ? (<Trade marketData={marketData} />): (<Loading />)}
+            
           </div>
           <Orderbook />
-          <Comments />
+          <Comments marketId={marketId} />
           
         </div>
         <div className='max-lg:hidden'>
-            <Trade />
+            {marketData ? (<Trade marketData={marketData} />): (<Loading />)}
+            
         </div>
       </div>
     </div>

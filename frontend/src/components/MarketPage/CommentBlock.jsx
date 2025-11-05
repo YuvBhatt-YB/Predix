@@ -1,14 +1,18 @@
+import { transactionsDateTimeFormatter } from '@/utils/transactions-date-formatter'
 import React from 'react'
 
-const CommentBlock = () => {
+const CommentBlock = ({username,userProfileImg,text,createdAt}) => {
   return (
-    <div className=' flex gap-2  mb-4 '>
+    <div className=' flex  gap-1 md:gap-2  mb-4 '>
         <div>
-            <img src="https://wac-cdn.atlassian.com/dam/jcr:ba03a215-2f45-40f5-8540-b2015223c918/Max-R_Headshot%20(1).jpg?cdnVersion=2881" alt="" srcset="" className=' w-[40px] h-[40px] rounded-small' />
+            <img src={userProfileImg} alt="" srcset="" className='w-[50px]  md:w-[40px] md:h-[40px] rounded-small' />
         </div>
-        <div>
-            <p className=' text-sm text-primaryGray'>June 18,2025</p>
-            <p>This is a Comment block</p>
+        <div className=' w-full'>
+            <div className='flex items-center  justify-between'>
+              <p className=' text-primary text-small font-semibold'>{username}</p>
+              <p className=' text-xs text-primaryGray'>{transactionsDateTimeFormatter(createdAt)}</p>
+            </div>
+            <p>{text}</p>
         </div>
     </div>
   )

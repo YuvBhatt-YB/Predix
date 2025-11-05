@@ -1,30 +1,11 @@
 import React, { useEffect, useState } from 'react'
 import TransactionModel from './TransactionModel'
 import { PiEmptyBold } from "react-icons/pi";
-import api from "../../api/funds"
-import { useSelector } from 'react-redux';
+
 import Loading from '../ui/Loading';
+import useTransaction from '@/hooks/useTransaction';
 const Transactions = () => {
-    const {wallet} = useSelector((state)=>state.user.userData)
-    const [transactions,setTransactions] = useState([])
-    const[loading,setLoading] = useState(false)
-    const fetchTransactions = async () => {
-      setLoading(true);
-      try {
-        const response = await api.get(`/transactions/${wallet.id}`);
-        setTransactions(response.data.transactions);
-      } catch (error) {
-        console.error("Error fetching transactions", error);
-        setTransactions([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-    useEffect(()=>{
-        
-        fetchTransactions()
-        console.log("Transaction Mounted")
-    },[])
+    const {transactions,loading} = useTransaction()
   return (
     <div>
       <div className=" pb-2 border-b-1 border-borderGray">

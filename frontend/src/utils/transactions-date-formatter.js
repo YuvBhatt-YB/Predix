@@ -12,5 +12,5 @@ export const transactionsDateTimeFormatter = (prismaDate) => {
         year:"numeric"
     })
 
-    return `${time}, ${date}`
+    return `${time} ${date}`
 }

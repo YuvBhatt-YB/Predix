@@ -13,7 +13,10 @@ import {
 import { Label } from "@/components/ui/label"
 import useAmount from '@/hooks/useAmount';
 import { Link } from 'react-router-dom';
-const Trade = () => {
+import usePlaceTrade from '@/hooks/usePlaceTrade';
+const Trade = ({marketData}) => {
+  const currentPriceYes = marketData.currentPriceYes
+  const currentPriceNo = 1 - marketData.currentPriceYes
   const {
     amount,
     selectedOption,
@@ -26,7 +29,9 @@ const Trade = () => {
     currentPrice,
     selectedCase,
     setSelectedCase
-  } = useAmount({yes:0.23,no:0.78});
+  } = useAmount({yes:currentPriceYes,no:currentPriceNo});
+  const {placeTrade} = usePlaceTrade()
+
   return (
     <Card className=" w-full lg:max-w-sm  ">
       <CardHeader>
@@ -76,7 +81,7 @@ const Trade = () => {
             >
               Yes
             </span>{" "}
-            23¢
+            {currentPriceYes * 100}¢
           </Button>
           <Button
             size="lg"
@@ -97,7 +102,7 @@ const Trade = () => {
             >
               No
             </span>{" "}
-            78¢
+            {currentPriceNo * 100}¢
           </Button>
         </div>
         <div className=" font-secondary flex justify-between items-center  w-full">
@@ -205,6 +210,7 @@ const Trade = () => {
           size="lg"
           type="submit"
           className="w-full font-secondary font-semibold md:py-8 bg-primaryBlue hover:bg-secondaryBlue"
+          onClick={()=>placeTrade({amount,selectedCase,selectedOption})}
         >
           <p>{selectedCase === "buy" ? "Buy" : "Sell"} {selectedOption.charAt(0).toUpperCase() + selectedOption.slice(1)}</p>
         </Button>

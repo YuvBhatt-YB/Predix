@@ -19,7 +19,7 @@ export default function useAmount(currentPrice){
         setPayoutValue(0)
         return
     }
-    console.log(value)
+    
     const parts = value.split(".")
     const intPart = parts[0]
     const decPart = parts[1]
@@ -37,7 +37,7 @@ export default function useAmount(currentPrice){
       const payout = calculatePayout(rawAmount,selectedOption,currentPrice)
       setPayoutValue(formatAmount(payout))
     } else if (selectedCase === "sell"){
-      console.log("This is sell case")
+      
       setAmount(value ? `${formatAmount(value,"sell")}`:"")
       const payout = calculateSellAmount(rawAmount,selectedOption,currentPrice)
       setPayoutValue(formatAmount(payout))

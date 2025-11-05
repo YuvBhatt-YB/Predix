@@ -9,7 +9,7 @@ const DisplayChart = ({marketData}) => {
       <div className=' flex gap-4 flex-col mb-4'>
         <div className=' flex items-center gap-4'>
             <img src={marketData.image} alt="" srcset="" className='h-[50px] w-[50px] rounded-small' />
-            <p className=' font-secondary font-semibold text-xl md:text-2xl text-primary'>{marketData.title}</p>
+            <p className=' font-secondary font-semibold  md:text-2xl text-primary'>{marketData.title}</p>
         </div>
         <div>
             <p className=' font-secondary text-labelColor'>$ {marketData.totalVolume} Vol</p>
