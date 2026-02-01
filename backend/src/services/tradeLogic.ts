@@ -1,5 +1,5 @@
 
-import { OrderOutcome, OrderType } from "@prisma/client"
+import { OrderExecutionType, OrderOutcome,OrderSide } from "@prisma/client"
 import prisma from "../prisma"
 import { TradeValidationResult } from "../types/Trade"
 import { redis } from "../redisClient"
@@ -34,10 +34,10 @@ export const validateTradeCriteria = async(userId:string,marketId:string,quantit
     return result
 }
 
-export const placeOrder = async (userId: string,marketId: string,quantity: number,price: number,type: string,outcome: string,walletId: string) => {
+export const placeOrder = async (userId: string,marketId: string,quantity: number,price: number,type: OrderSide,outcome: OrderOutcome,orderType:OrderExecutionType,walletId: string) => {
     try {
         const amount: number = quantity*price
-        const orderResult = await prisma.$transaction(async (tx) => {
+        const order = await prisma.$transaction(async (tx) => {
             if (type == "BUY") {
                 await tx.wallet.update({
                     where: { userID: userId },
@@ -60,13 +60,14 @@ export const placeOrder = async (userId: string,marketId: string,quantity: numbe
                 });
 
                 if (!holdings || holdings.shares < quantity) {
-                    return { ok: false,order: "Insufficient Shares to Sell" };
+                    throw new Error("Insufficient shares to place SELL order");
                 }
 
                 await tx.holdings.update({
                     where: { id: holdings.id },
                     data: {
                         shares: { decrement: quantity },
+                        lockedShares: {increment: quantity}
                     },
                 });
             }
@@ -74,18 +75,22 @@ export const placeOrder = async (userId: string,marketId: string,quantity: numbe
                 userId:userId,
                 marketId:marketId,
                 quantity:quantity,
+                remainingQuantity:quantity,
                 price:price,
-                type:type as OrderType,
-                outcome:outcome as OrderOutcome,
+                type:type ,
+                outcome:outcome,
+                orderType:orderType,
                 status:"OPEN"
             }})
             
-            await redis.lpush(`orders:${marketId}`,JSON.stringify(order))
-            return {ok:true,order:order}
-        });
-
-        return orderResult
+            return order
+        })
+        
+        await redis.lpush(`globalOrdersQueue`,JSON.stringify(order))
+        return {ok:true,order:order}
     } catch (error) {
-        console.error(error)
+        if(error instanceof Error){
+            return {ok:false,message:error.message || "UNKNOWN ERROR WHILE PLACING ORDER"}
+        }
     }
 }

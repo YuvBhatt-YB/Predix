@@ -6,6 +6,7 @@ export const tradeSchema  = z.object({
     price:z.number(),
     type:z.enum(["BUY","SELL"]),
     outcome:z.enum(["YES","NO"]),
+    orderType:z.enum(["LIMIT","MARKET"]),
     marketId:z.string(),
     userId:z.string()
 })

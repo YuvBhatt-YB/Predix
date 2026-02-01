@@ -15,9 +15,13 @@ enum MarketStatus {
   CLOSED 
   CANCELLED
 }
-enum OrderType {
+enum OrderSide {
   BUY
   SELL
+}
+enum OrderExecutionType {
+  LIMIT
+  MARKET
 }
 enum OrderOutcome {
   YES
@@ -25,7 +29,8 @@ enum OrderOutcome {
 }
 enum OrderStatus {
   OPEN
-  MATCHED
+  FILLED
+  PARTIAL
   CANCELLED
 }
 enum TransactionType{
@@ -76,7 +81,8 @@ model Transaction {
 
 model Holdings {
   id String @id @default(uuid())
-  shares Float
+  shares Float @default(0)
+  lockedShares Float @default(0)
   avgPrice Float
   userId String
   marketId String
@@ -128,9 +134,11 @@ model Order {
   id String @id @default(uuid())
   userId String
   marketId String
-  type OrderType
+  type OrderSide
+  orderType OrderExecutionType
   outcome OrderOutcome
   quantity Float @default(0)
+  remainingQuantity Float @default(0)
   price Float @default(0)
   status OrderStatus @default(OPEN)
   user User @relation(fields: [userId],references: [id],onDelete: Cascade)
@@ -155,6 +163,7 @@ model Trade {
   outcome OrderOutcome
   price Float
   quantity Float
+  
 
   market Market @relation(fields: [marketId],references: [id])
   buyOrder Order @relation("BuyOrder",fields: [buyOrderId],references: [id])

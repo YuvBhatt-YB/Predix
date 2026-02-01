@@ -5,8 +5,10 @@ export type Order = {
     userId: string,
     marketId: string,
     type: string,
+    orderType:string
     outcome: string,
     quantity: number,
+    remainingQuantity: number,
     price: number,
     status: string,
     createdAt: string

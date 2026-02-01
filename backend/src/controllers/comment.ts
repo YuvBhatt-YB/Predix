@@ -3,7 +3,7 @@ import { commentSchema, getCommentSchema } from "../Schemas/comment";
 import prisma from "../prisma";
 import { ZodError } from "zod";
 import { Server } from "http";
-import { redis } from "../redisClient";
+
 
 
 export const handleGetComments = async(req: Request,res: Response) => {

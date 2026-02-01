@@ -15,7 +15,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@prisma/client": "^6.13.0",
+    "@prisma/client": "^6.12.0",
     "@types/passport": "^1.0.17",
     "@types/passport-local": "^1.0.38",
     "bcrypt": "^6.0.0",
@@ -30,7 +30,7 @@
     "passport": "^0.7.0",
     "passport-google-oauth20": "^2.0.0",
     "passport-local": "^1.0.0",
-    "prisma": "^6.13.0",
+    "prisma": "^6.12.0",
     "socket.io": "^4.8.1",
     "zod": "^4.0.17"
   },
@@ -46,4 +46,5 @@
     "ts-node": "^10.9.2",
     "typescript": "^5.9.2"
   }
+  
 }

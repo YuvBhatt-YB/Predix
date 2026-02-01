@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "Holdings" ADD COLUMN     "lockedShares" DOUBLE PRECISION NOT NULL DEFAULT 0,
+ALTER COLUMN "shares" SET DEFAULT 0;
