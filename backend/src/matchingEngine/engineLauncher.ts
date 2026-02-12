@@ -5,6 +5,7 @@ import os from "os";
 import { runWorker } from "./worker";
 import { runRouter, updateWorkerAssignedMarkets } from "./globalRouter";
 import { rebuildRedisFromDB } from "./rebuild";
+import { orderBroadcaster } from "./orderBroadcaster";
 
 interface workerEnv {
     MARKETS:string,
@@ -109,6 +110,7 @@ if(cluster.isPrimary){
             
         }else if(process.env.BROADCASTER){
             console.log("Broadcaster")
+            orderBroadcaster()
         }
         else{
             const markets = JSON.parse(process.env.MARKETS || "[]");

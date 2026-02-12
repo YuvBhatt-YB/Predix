@@ -1,4 +1,4 @@
-import { Order } from "../types/Trade";
+import { Order, orderBroadcastData, orderBroadcastEventType } from "../types/Trade";
 import Redis from "ioredis";
 
 import prisma from "../prisma";
@@ -15,9 +15,20 @@ export const matchOrder = async (
         const currKey = `ORDERBOOK:${marketId}:${outcome}:${type}`;
         const oppKey = `ORDERBOOK:${marketId}:${outcome}:${opp}`;
         let remainingQty = remainingQuantity;
+        const orderBroadcastData: orderBroadcastData = {
+            broadcastEventType:orderBroadcastEventType.ORDER_ADDED,
+            orderID:order.id,
+            marketId:order.marketId,
+            type:order.type,
+            outcome:order.outcome,
+            quantity:order.remainingQuantity,
+            price:order.price
+
+        }
         if(orderType === "LIMIT"){
             await addOrderToRedisQueue(order, orderBook, currKey);
         }
+        await orderBook.xadd(`orderBroadCaster`,"*","event",JSON.stringify(orderBroadcastData))
         while (remainingQty > 0) {
             console.log(remainingQty);
             console.log(currKey);
@@ -67,6 +78,26 @@ export const matchOrder = async (
                 remainingQty,
                 orderBook,
             );
+            const orderUpdatedData: orderBroadcastData = {
+                broadcastEventType:orderBroadcastEventType.ORDER_UPDATED,
+                orderID:order.id,
+                marketId:order.marketId,
+                type:order.type,
+                outcome:order.outcome,
+                quantity:fillQuantity,
+                price:order.price
+            }
+            const oppOrderUpdatedData: orderBroadcastData = {
+                broadcastEventType:orderBroadcastEventType.ORDER_UPDATED,
+                orderID:oppOrder.id,
+                marketId:oppOrder.marketId,
+                type:oppOrder.type,
+                outcome:oppOrder.outcome,
+                quantity:fillQuantity,
+                price:oppOrder.price
+            }
+            await orderBook.xadd(`orderBroadCaster`,"*","event",JSON.stringify(orderUpdatedData))
+            await orderBook.xadd(`orderBroadCaster`,"*","event",JSON.stringify(oppOrderUpdatedData))
             remainingQty -= fillQuantity;
             console.log(remainingQty);
         }
@@ -96,6 +127,8 @@ const handleMarketOrderTermination = async(order: Order,remainingQty:number) => 
         })
     })
 }
+
+
 const executeTrade = async (
     order: Order,
     oppOrder: Order,
