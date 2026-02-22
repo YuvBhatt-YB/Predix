@@ -15,16 +15,35 @@ export type Order = {
     status: string;
     createdAt: string;
 };
-export enum orderBroadcastEventType{
-    ORDER_ADDED = "ORDER_ADDED",
-    ORDER_UPDATED = "ORDER_UPDATED"
+export enum marketBroadcastEventType{
+    TRADE_EXECUTED = "TRADE_EXECUTED",
+    DEPTH_UPDATED = "DEPTH_UPDATED",
+    DEPTH_ADDED = "DEPTH_ADDED"
 }
-export type orderBroadcastData = {
-    broadcastEventType: orderBroadcastEventType;
-    orderID: string;
+
+export type TradeExecutedEventType = {
+    broadcastEventType: marketBroadcastEventType.TRADE_EXECUTED;
+    marketId: string;
+    side:string;
+    quantity: number;
+    price: number;
+}
+export type depthUpdatedEventType = {
+    broadcastEventType: marketBroadcastEventType.DEPTH_UPDATED;
     marketId: string;
     type: string;
     outcome: string;
     quantity: number;
-    price: number;
+    price: number
 };
+
+export type depthAddedEventType = {
+    broadcastEventType: marketBroadcastEventType.DEPTH_ADDED;
+    marketId: string;
+    type: string;
+    outcome: string;
+    quantity: number;
+    price: number
+}
+
+export type MarketStreamEvent = TradeExecutedEventType | depthUpdatedEventType | depthAddedEventType

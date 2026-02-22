@@ -13,6 +13,7 @@ import passport from "passport"
 import dotenv from "dotenv"
 import { Server } from "socket.io"
 import { registerCommentHandlers } from "./sockets/comments.socket"
+import { registerTradeHandlers } from "./sockets/trade.socket"
 
 dotenv.config()
 const app = express()
@@ -49,4 +50,5 @@ app.use("/comment",commentsRoute)
 app.use("/trade",tradeRoute)
 
 registerCommentHandlers(io)
+registerTradeHandlers(io)
 server.listen(PORT,(): void=>{console.log(`Server is Running at PORT ${PORT}`)})
