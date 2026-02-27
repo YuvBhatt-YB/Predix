@@ -5,9 +5,8 @@ import os from "os";
 import { runWorker } from "./worker";
 import { runRouter, updateWorkerAssignedMarkets } from "./globalRouter";
 import { rebuildRedisFromDB } from "./rebuild";
-import { marketDataStream } from "./marketDataStream";
-import { marketBroadcastEventType } from "../types/Trade";
-import { engineEventBus } from "../event/eventBus";
+
+
 
 interface workerEnv {
     MARKETS:string,
@@ -30,7 +29,7 @@ if(cluster.isPrimary){
             if(markets.length === 0){
                 process.exit(0)
             }
-            const cpuCounts = (os.cpus().length) - 2
+            const cpuCounts = (os.cpus().length) - 1
             
             const marketPerWorkers = Math.ceil(markets.length/cpuCounts)
             
@@ -39,9 +38,6 @@ if(cluster.isPrimary){
 
             const router = cluster.fork({ROUTER:true})
             console.log(`Global Router started ${router.process.pid}`)
-
-            const marketDataStream = cluster.fork({BROADCASTER:true})
-            console.log(`Market Data Stream started ${marketDataStream.process.pid}`)
 
             chunks.forEach((chunk) => {
                 const assigned = JSON.stringify(chunk.map((m)=>m.id))
@@ -66,10 +62,6 @@ if(cluster.isPrimary){
                     console.log(`Router ${worker.process.pid} died.Restarting`)
                     const newRouter = cluster.fork({ROUTER:true})
                     console.log(`New Router ${newRouter.process.pid} Started`)
-                }else if(worker.process.env.BROADCASTER){
-                    console.log(`Market Data Stream ${worker.process.pid} died.Restarting`)
-                    const newBroadcaster = cluster.fork({BROADCASTER:true})
-                    console.log(`Market Data Stream ${newBroadcaster.process.pid} Started`)
                 }
                 else{
                     const assigned = workerAssignedMarkets.get(worker.id)
@@ -89,15 +81,6 @@ if(cluster.isPrimary){
                         type:"WORKER_MARKETS",
                         data:Array.from(workerAssignedMarkets.entries())
                     })
-                }else if(msg.type == marketBroadcastEventType.TRADE_EXECUTED ){
-                    engineEventBus.emit(marketBroadcastEventType.TRADE_EXECUTED,msg.data)
-                    console.log(msg.data)
-                }else if(msg.type == marketBroadcastEventType.DEPTH_UPDATED){
-                    engineEventBus.emit(marketBroadcastEventType.DEPTH_UPDATED,msg.data)
-                    console.log(msg.data)
-                }else if(msg.type == marketBroadcastEventType.DEPTH_ADDED){
-                    engineEventBus.emit(marketBroadcastEventType.DEPTH_ADDED,msg.data)
-                    console.log(msg.data)
                 }
             })
             
@@ -119,9 +102,6 @@ if(cluster.isPrimary){
             process.send?.({type:"GET_WORKER_MARKETS"})
             runRouter()
             
-        }else if(process.env.BROADCASTER){
-            console.log("Market Data Stream")
-            marketDataStream()
         }
         else{
             const markets = JSON.parse(process.env.MARKETS || "[]");

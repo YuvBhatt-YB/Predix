@@ -11,6 +11,6 @@ export function createRebuildRedisClient(){
     return new Redis(process.env.REDIS_CLIENT || "redis://localhost:6379")
 }
 
-export function createMarketDataStreamRedisClient(){
+export function createDepthRebuildRedisClient(){
     return new Redis(process.env.REDIS_CLIENT || "redis://localhost:6379")
 }

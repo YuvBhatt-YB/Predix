@@ -3,8 +3,11 @@ import Redis from "ioredis"
 import { Order } from "../types/Trade"
 import { matchOrder } from "./engine"
 import { createRedisClient } from "./redis"
+import { rebuildDepthRedisFromDB } from "./rebuild"
 
 export const runWorker = async (markets: string[]) => {
+
+    await rebuildDepthRedisFromDB(markets)
 
     const client = createRedisClient()
     await client.connect()

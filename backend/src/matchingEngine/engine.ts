@@ -372,7 +372,7 @@ const addOrderToRedisQueue = async (
     }
 };
 
-const parseRedisOrder = (raw: Record<string, string>): Order => {
+export const parseRedisOrder = (raw: Record<string, string>): Order => {
     if (!raw.id) throw new Error("Redis Order missing ID");
     if (!raw.userId) throw new Error("Redis Order missing User ID");
     if (!raw.marketId) throw new Error("Redis Order missing Market ID");
