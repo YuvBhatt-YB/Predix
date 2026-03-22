@@ -10,7 +10,7 @@ export const matchOrder = async (
     orderBook: Redis,
 ) => {
     try {
-        const { type, remainingQuantity, outcome, orderType } = order;
+        const { type, remainingQuantity, outcome, orderType,marketId } = order;
         const opp = type === "BUY" ? "SELL" : "BUY";
         const currKey = `ORDERBOOK:${marketId}:${outcome}:${type}`;
         const oppKey = `ORDERBOOK:${marketId}:${outcome}:${opp}`;
@@ -20,16 +20,7 @@ export const matchOrder = async (
         let depthLevelAdded: depthAddedEventType[] = []
         if(orderType === "LIMIT"){
             await addOrderToRedisQueue(order, orderBook, currKey);
-            await addAndUpdatePriceDepth(marketId,outcome,type,order,orderBook);
-            const depthAddedEvent: depthAddedEventType = {
-                broadcastEventType: marketBroadcastEventType.DEPTH_ADDED,
-                marketId: marketId,
-                type: type,
-                outcome: outcome,
-                quantity: order.remainingQuantity,
-                price: order.price
-            }
-            depthLevelAdded.push(depthAddedEvent)
+            await addAndUpdatePriceDepth(marketId,outcome,type,order,orderBook,depthLevelAdded);
         }
         while (remainingQty > 0) {
             // console.log(remainingQty);
@@ -87,6 +78,7 @@ export const matchOrder = async (
                 price:oppOrder.price,
                 quantity:fillQuantity,
                 side:order.type,
+                dateTime:new Date()
             }
             trades.push(tradeEvent)
             await priceDepthUpdatePerOrder(orderType === "LIMIT" ? order:null,oppOrder,marketId,fillQuantity,depthLevelUpdates,orderBook)
@@ -101,22 +93,29 @@ export const matchOrder = async (
             await handleMarketOrderTermination(order,remainingQty)
         }
         const streamPipeline = orderBook.pipeline()
+        let shouldTriggerLP = false
         if(depthLevelAdded.length > 0){
+            shouldTriggerLP = true
             for(const level of depthLevelAdded){
                 streamPipeline.xadd(`MarketDataStream`,"*","priceLevelAdded",JSON.stringify(level))
             }
         }
         if(trades.length > 0){
+            shouldTriggerLP = true
             for(const trade of trades){
                 streamPipeline.xadd(`MarketDataStream`,"*","tradeExecuted",JSON.stringify(trade))
             }
         }
         if(depthLevelUpdates.size > 0){
+            shouldTriggerLP = true
             for(const update of depthLevelUpdates.values()){
                 streamPipeline.xadd(`MarketDataStream`,"*","priceLevelUpdated",JSON.stringify(update))
             }
         }
         await streamPipeline.exec()
+        if(shouldTriggerLP){
+            await orderBook.publish("LP_TRIGGER",marketId)
+        }
     } catch (error) {
         console.log(error);
     }
@@ -201,13 +200,30 @@ const priceDepthUpdatePerOrder = async(order:Order|null,oppOrder:Order,marketId:
         console.error("Price level quantity went negative for order ",oppOrder.id)
     }
 }
-const addAndUpdatePriceDepth = async(marketId:string,outcome:string,type:string,order:Order,orderBook:Redis) => {
+const addAndUpdatePriceDepth = async(marketId:string,outcome:string,type:string,order:Order,orderBook:Redis,depthLevelAdded: depthAddedEventType[]) => {
     const depthPriceLevelExists = await orderBook.hexists(`Depth:${marketId}:${outcome}:${type}`,order.price.toString())
     if(depthPriceLevelExists === 0){
         await orderBook.hset(`Depth:${marketId}:${outcome}:${type}`,order.price.toString(),order.remainingQuantity.toString())
+        const depthAddedEvent: depthAddedEventType = {
+            broadcastEventType: marketBroadcastEventType.DEPTH_ADDED,
+            marketId: marketId,
+            type: type,
+            outcome: outcome,
+            quantity: order.remainingQuantity,
+            price: order.price
+        }
+        depthLevelAdded.push(depthAddedEvent)
     }else{
-        const existingDepthQuantity = await orderBook.hget(`Depth:${marketId}:${outcome}:${type}`,order.price.toString())
-        await orderBook.hset(`Depth:${marketId}:${outcome}:${type}`,order.price.toString(),(Number(existingDepthQuantity)+ order.remainingQuantity).toString())
+        const newQty = await orderBook.hincrby(`Depth:${marketId}:${outcome}:${type}`,order.price.toString(),order.remainingQuantity)
+        const depthAddedEvent: depthAddedEventType = {
+            broadcastEventType: marketBroadcastEventType.DEPTH_ADDED,
+            marketId: marketId,
+            type: type,
+            outcome: outcome,
+            quantity: newQty,
+            price: order.price
+        }
+        depthLevelAdded.push(depthAddedEvent)
     }
 }
 const executeTrade = async (

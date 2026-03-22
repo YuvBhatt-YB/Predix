@@ -27,6 +27,7 @@ export type TradeExecutedEventType = {
     side:string;
     quantity: number;
     price: number;
+    dateTime: Date;
 }
 export type depthUpdatedEventType = {
     broadcastEventType: marketBroadcastEventType.DEPTH_UPDATED;
@@ -47,3 +48,14 @@ export type depthAddedEventType = {
 }
 
 export type MarketStreamEvent = TradeExecutedEventType | depthUpdatedEventType | depthAddedEventType
+
+export type Depth = {
+    "YES":{
+        "BUY":{},
+        "SELL":{}
+    },
+    "NO":{
+        "BUY":{},
+        "SELL":{}
+    }
+}

@@ -59,7 +59,8 @@ export const rebuildDepthRedisFromDB = async (markets: string[]) => {
                     const orderResults = await orderPipeline.exec()
                     
                     if(!orderResults || orderResults.length === 0) continue
-                    for(const[,orderRaw] of orderResults){
+                    for(const[error,orderRaw] of orderResults){
+                        if(error || !orderRaw) continue
                         const order = parseRedisOrder(orderRaw as Record<string,string>)
                         if(order.remainingQuantity <=0) continue
                         if(!priceLevels.has(String(order.price))){

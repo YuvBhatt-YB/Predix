@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { marketSchema } from "../Schemas/markets";
 import { Prisma } from "@prisma/client";
 import prisma from "../prisma";
+import { redis } from "../redisClient";
 
 
 
@@ -19,6 +20,7 @@ export const handleCreateMarket = async (req: Request,res:Response) => {
                     ...parsed
                 }
             })
+            await redis.publish("engine_events",JSON.stringify({type:"NEW_MARKET",marketId: newMarket.id}))
             return res.status(200).json({message:"Market Created"})
         }else{
             return res.status(400).json({message:"Market Already Exists"})

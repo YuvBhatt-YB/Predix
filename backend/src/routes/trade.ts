@@ -1,9 +1,11 @@
 import { Router } from "express";
-import { handlePostTrade } from "../controllers/trade";
+import { handleGetOrderBookData, handleGetTradeChartData, handlePostTrade } from "../controllers/trade";
 
 const router = Router()
 
 
 router.post("/",handlePostTrade)
+router.get("/chartData/:marketId",handleGetTradeChartData)
+router.get("/orderBookData/:marketId",handleGetOrderBookData)
 
 export default router

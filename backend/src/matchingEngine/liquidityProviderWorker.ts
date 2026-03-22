@@ -1,0 +1,199 @@
+import Redis from "ioredis"
+import prisma from "../prisma"
+import { createRedisClient } from "./redis"
+import { object } from "zod"
+import { Depth } from "../types/Trade"
+
+
+export const runLiquidityProviderWorker = async(markets: string[]) => {
+    console.log(`Liquidity Provider Worker started for ${markets.length} markets.`)
+    console.log(`Liquidity Provider Worker Markets ${markets} `)
+    console.log(markets)
+    const liquidityClient = createRedisClient()
+    const commandClient = createRedisClient()
+    await liquidityClient.subscribe("LP_TRIGGER")
+    const BOT_NAME = `LP_BOT`
+    const bot = await prisma.user.findUnique({
+        where:{
+            username:BOT_NAME
+        }
+    })
+    if(!bot){
+        console.error("Liquidity Provider Bot doesn't exists")
+        return
+    }
+    const BOT_ID = bot.id
+    try{
+        const dirtyMarkets: Set<string> = new Set()
+        const processingMarkets: Set<string> = new Set()
+
+        liquidityClient.on("message",(_,marketId) => {
+            dirtyMarkets.add(marketId)
+            console.log(dirtyMarkets)
+        })
+
+        setInterval(() => {
+            const marketToProcess = Array.from(dirtyMarkets)
+            dirtyMarkets.clear()
+            for(const marketId of marketToProcess){
+                safeRebalance(marketId,BOT_ID,processingMarkets,commandClient)
+            }
+            
+        }, 50);
+
+        setInterval(()=>{
+            for(const marketId of markets){
+                if(!dirtyMarkets.has(marketId)){
+                    safeRebalance(marketId,BOT_ID,processingMarkets,commandClient)
+                }
+            }
+        },2000)
+    }catch(error){
+        console.error(`Error in Liquidity Provider Worker : ${error}`)
+    }
+}
+const safeRebalance = async(marketId:string,BOT_ID:string,processingMarkets: Set<string>,commandClient:Redis) => {
+    if(processingMarkets.has(marketId)) return
+
+    processingMarkets.add(marketId)
+
+    try{
+        console.log("Rebalancing Market"+marketId)
+        await rebalanceMarket(marketId,BOT_ID,commandClient)
+    }catch(error){
+        console.error(`Rebalancing failed for Market ${marketId}`)
+    }finally{
+        processingMarkets.delete(marketId)
+    }
+}
+const rebalanceMarket = async(marketId: string,BOT_ID:string,commandClient:Redis) => {
+    console.log("Entered rebalanceMarket", marketId)
+    
+    const holding = await findHolding(BOT_ID,marketId)
+    if(!holding){
+        //create holding
+        await createHolding(BOT_ID,marketId)
+    }
+
+    const depth: Depth = await getDepth(marketId,commandClient)
+    console.log(depth)
+
+
+
+}
+
+const getDepth = async(marketId:string,commandClient:Redis) => {
+    const yesBuyRaw = await commandClient.hgetall(`Depth:${marketId}:YES:BUY`)
+    const yesSellRaw = await commandClient.hgetall(`Depth:${marketId}:YES:SELL`)
+    const noBuyRaw = await commandClient.hgetall(`Depth:${marketId}:NO:BUY`)
+    const noSellRaw = await commandClient.hgetall(`Depth:${marketId}:NO:SELL`)
+
+    const parse = (raw:Record<string,string>) => {
+        if(!raw || Object.keys(raw).length === 0) return 0
+        return Object.fromEntries(Object.entries(raw).map(([price,quantity]) => [Number(price),Number(quantity)]))
+    }
+
+    return {
+        "YES":{
+            "BUY":parse(yesBuyRaw),
+            "SELL":parse(yesSellRaw)
+        },
+        "NO":{
+            "BUY":parse(noBuyRaw),
+            "SELL":parse(noSellRaw)
+        }
+    }
+
+}
+const getBestBid = () => {
+    
+}
+const findHolding = async(BOT_ID:string,marketId:string) => {
+    console.log("Finding holding for:", BOT_ID, marketId)
+    const holdings = await prisma.holdings.findUnique({
+        where:{
+            userId_marketId:{
+                userId:BOT_ID,
+                marketId:marketId
+            }
+        }
+    })
+
+    return holdings
+}
+
+
+const createHolding = async(BOT_ID:string,marketId:string) => {
+    const AVG_PRICE = await getReferencePrice(marketId) || 0.5
+    const MAX_INVENTORY = 40000
+    await prisma.holdings.create({
+        data:{
+            userId:BOT_ID,
+            marketId:marketId,
+            avgPrice:AVG_PRICE,
+            shares:MAX_INVENTORY/2,
+        }
+    })
+}
+
+
+
+const getReferencePrice = async(marketId:string) => {
+    const price = await prisma.market.findUnique({
+        where:{
+            id:marketId
+        },
+        select:{
+            currentPriceYes:true
+        }
+    })
+    if(!price) console.error(" Market not found or market doesnt have initial price set") 
+    return price?.currentPriceYes ?? 0.5
+}
+
+
+export const ensureBotSetup = async() => {
+    const BOT_ID = "LP_BOT"
+    const BOT_PASSWORD = "NO_LOGIN"
+    const BOT_EMAIL = "bot@email.com"
+    const BOT_BALANCE = 10000000
+
+    const botExists = await prisma.user.findUnique({
+        where:{
+            username:BOT_ID
+        }
+    })
+
+    if(!botExists){
+        await prisma.user.create({
+            data:{
+                username:BOT_ID,
+                password:BOT_PASSWORD,
+                profileImg:"",
+                email:BOT_EMAIL
+            }
+        })
+        console.log("LP BOT User Created")
+    }
+    if(!botExists) {
+        console.error("LP_BOT doesn't exists")
+        return
+    } 
+    const walletExists = await prisma.wallet.findUnique({
+        where:{
+            userID:botExists.id
+        }
+    })
+
+
+    if(!walletExists){
+        await prisma.wallet.create({
+            data:{
+                userID:botExists.id,
+                balance:BOT_BALANCE,
+                locked:0
+            }
+        })
+        console.log("LP BOT Wallet Created")
+    }
+}
