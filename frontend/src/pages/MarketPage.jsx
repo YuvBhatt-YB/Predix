@@ -9,10 +9,12 @@ import { useParams } from 'react-router-dom'
 import api from "../api/markets"
 import { useSelector } from 'react-redux'
 import Loading from '@/components/ui/Loading'
+import useTrades from '@/hooks/useTrades'
 const MarketPage = () => {
   const {marketId} = useParams()
   const {profileImg} = useSelector((state)=>state.user.userData)
   const [marketData,setMarketData] = useState({})
+  const {tradeExecuted,depthAdded,depthUpdated,orderBook,yesAsks,yesBids,noAsks,noBids,yesSpread,noSpread,lastProbability,chartData,marketPageError} = useTrades(marketId)
   useEffect(()=>{
     const fetchMarketData = async () => {
       const query = `/${marketId}`
@@ -25,15 +27,21 @@ const MarketPage = () => {
   },[])
   return (
     <div className=" max-width mx-auto px-2 lg:px-0 ">
+      <p>Hello</p>
+      <p>{JSON.stringify(tradeExecuted)}</p>
+      <p>{JSON.stringify(depthAdded)}</p>
+      <p>{JSON.stringify(depthUpdated)}</p>
+      <p>{JSON.stringify(orderBook)}</p>
+      <p>{JSON.stringify(chartData)}</p>
       <div className="  lg:flex lg:justify-between lg:items-start gap-3 py-6 ">
         <div className="flex-1">
-          {marketData ? (<DisplayChart marketData={marketData} />): (<Loading />)}
+          {marketData ? (<DisplayChart marketData={marketData} lastProbability={lastProbability} chartData={chartData} marketPageError={marketPageError} />): (<Loading />)}
           
           <div className=' lg:hidden'>
             {marketData ? (<Trade marketData={marketData} />): (<Loading />)}
             
           </div>
-          <Orderbook />
+          <Orderbook yesAsks={yesAsks} yesBids={yesBids} noAsks={noAsks} noBids={noBids} yesSpread={yesSpread} noSpread={noSpread} marketPageError={marketPageError} />
           <Comments marketId={marketId} />
           
         </div>

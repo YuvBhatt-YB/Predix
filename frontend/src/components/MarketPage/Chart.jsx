@@ -44,68 +44,66 @@ const chartConfig = {
     color: "var(--chart-5)",
   },
 } 
-const Chart = () => {
+const Chart = ({chartData}) => {
   return (
-    <Card className=" shadow-none border-none font-secondary">
-      <CardContent className="p-0">
-        <ChartContainer config={chartConfig}>
-          <ResponsiveContainer width="100%">
-            <LineChart
-              accessibilityLayer
-              data={chartData.priceHistory}
-              margin={{
-                top: 10,
-                left: -15,
-                right: 20,
-              }}
-            >
-              <CartesianGrid vertical={false} />
-              <XAxis
-                dataKey="time"
-                tickLine={false}
-                axisLine={false}
-                tickMargin={10}
-              />
-              <YAxis
-                dataKey="price"
-                tickLine={false}
-                axisLine={false}
-                tickMargin={10}
-                tickFormatter={(value) => `${value}%`}
-              />
-              <ChartTooltip
-                cursor={false}
-                content={
-                  <ChartTooltipContent
-                    indicator="line"
-                    nameKey="price"
-                    hideLabel
-                  />
-                }
-              />
-              <Line
-                dataKey="price"
-                type="natural"
-                stroke="#1452F0"
-                strokeWidth={2}
-                dot={({ payload, ...props }) => {
-                  return (
-                    <Dot
-                      key={payload.browser}
-                      r={3}
-                      cx={props.cx}
-                      cy={props.cy}
-                      fill="#1452F0"
-                      stroke={payload.fill}
-                    />
-                  );
-                }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </ChartContainer>
-      </CardContent>
-    </Card>
+      <Card className=" shadow-none border-none font-secondary">
+          <CardContent className="p-0">
+              <ChartContainer config={chartConfig}>
+                  <ResponsiveContainer width="100%">
+                      <LineChart
+                          accessibilityLayer
+                          data={chartData}
+                          margin={{
+                              top: 10,
+                              left: -15,
+                              right: 20,
+                          }}
+                      >
+                          <CartesianGrid vertical={false} />
+                          <XAxis
+                              dataKey="time"
+                              tickLine={false}
+                              axisLine={false}
+                              tickMargin={10}
+                              interval="preserveStartEnd"
+                              minTickGap={30}
+                              tickFormatter={(time) => {
+                                  const d = new Date(time);
+                                  return `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
+                              }}
+                          />
+                          <YAxis
+                              dataKey="price"
+                              tickLine={false}
+                              axisLine={false}
+                              tickMargin={10}
+                              domain={[0, 100]}
+                              tickFormatter={(value) => `${value}%`}
+                          />
+                          <ChartTooltip
+                              cursor={false}
+                              content={
+                                  <ChartTooltipContent
+                                      indicator="line"
+                                      nameKey="price"
+                                      hideLabel
+                                  />
+                              }
+                          />
+                          <Line
+                              dataKey="price"
+                              type="monotone"
+                              stroke="#1452F0"
+                              strokeWidth={2}
+                              dot={{ r: 3 }}
+                              isAnimationActive
+                              animationDuration={300}
+                          />
+                      </LineChart>
+                  </ResponsiveContainer>
+              </ChartContainer>
+          </CardContent>
+      </Card>
   );
 }
 
