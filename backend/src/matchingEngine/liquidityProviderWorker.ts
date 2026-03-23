@@ -74,11 +74,19 @@ const rebalanceMarket = async(marketId: string,BOT_ID:string,commandClient:Redis
         //create holding
         await createHolding(BOT_ID,marketId)
     }
-
+    
+    //get Depth
     const depth: Depth = await getDepth(marketId,commandClient)
     console.log(depth)
+    
+    //compute Anchor
+    const bestYesBid = getBestBid(depth.YES.BUY)
+    const bestYesAsk = getBestAsk(depth.YES.SELL)
 
-
+    console.log(`Best Bid & Ask for market ${bestYesAsk} , ${bestYesBid}`)
+    
+    const anchor = await computeAnchor(bestYesBid,bestYesAsk,0.02,marketId)
+    console.log(anchor)
 
 }
 
@@ -89,7 +97,7 @@ const getDepth = async(marketId:string,commandClient:Redis) => {
     const noSellRaw = await commandClient.hgetall(`Depth:${marketId}:NO:SELL`)
 
     const parse = (raw:Record<string,string>) => {
-        if(!raw || Object.keys(raw).length === 0) return 0
+        if(!raw || Object.keys(raw).length === 0) return {}
         return Object.fromEntries(Object.entries(raw).map(([price,quantity]) => [Number(price),Number(quantity)]))
     }
 
@@ -105,8 +113,26 @@ const getDepth = async(marketId:string,commandClient:Redis) => {
     }
 
 }
-const getBestBid = () => {
-    
+const computeAnchor = async(bestBid:number|undefined,bestAsk:number|undefined,tick:number,marketId:string) => {
+    const initialProbability = await prisma.market.findUnique({where:{id:marketId},select:{initialPriceYes:true}})
+    if(!initialProbability) return 
+    console.log(initialProbability)
+    let anchor
+    return initialProbability
+}
+const getBestBid = (ordersObj: {}) => {
+    const prices = Object.keys(ordersObj).map(Number)
+
+    const bestBid = prices.length ? Math.max(...prices) : undefined
+
+    return bestBid
+}
+const getBestAsk = (ordersObj: {}) => {
+    const prices = Object.keys(ordersObj).map(Number)
+
+    const bestAsk = prices.length ? Math.min(...prices) : undefined
+
+    return bestAsk
 }
 const findHolding = async(BOT_ID:string,marketId:string) => {
     console.log("Finding holding for:", BOT_ID, marketId)
