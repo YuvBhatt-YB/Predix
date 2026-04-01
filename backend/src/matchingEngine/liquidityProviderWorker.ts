@@ -86,8 +86,13 @@ const rebalanceMarket = async(marketId: string,BOT_ID:string,commandClient:Redis
     console.log(`Best Bid & Ask for market ${bestYesAsk} , ${bestYesBid}`)
     
     const anchor = await computeAnchor(bestYesBid,bestYesAsk,0.02,marketId)
-    console.log(anchor)
+    console.log(`Anchor for  ${marketId} is : ${anchor}`)
+    if(!anchor) return
 
+    
+    //generate Ladders
+    const yesLadder = generateLadder(0.02,3,anchor)
+    console.log(yesLadder)
 }
 
 const getDepth = async(marketId:string,commandClient:Redis) => {
@@ -113,12 +118,36 @@ const getDepth = async(marketId:string,commandClient:Redis) => {
     }
 
 }
+const generateLadder = (tick:number,levels:number,anchorPrice:number) => {
+    const buyLevels = []
+    const sellLevels = []
+
+    for(let i = 1;i<=levels;i++){
+        buyLevels.push(Number((anchorPrice - i*tick).toFixed(2)))
+        sellLevels.push(Number((anchorPrice + i*tick).toFixed(2)))
+    }
+
+    return {
+        "BUY":buyLevels,
+        "SELL":sellLevels
+    }
+}
 const computeAnchor = async(bestBid:number|undefined,bestAsk:number|undefined,tick:number,marketId:string) => {
-    const initialProbability = await prisma.market.findUnique({where:{id:marketId},select:{initialPriceYes:true}})
-    if(!initialProbability) return 
-    console.log(initialProbability)
+    const marketData = await prisma.market.findUnique({where:{id:marketId},select:{initialPriceYes:true}})
+    const initialProbability = marketData?.initialPriceYes
+    if(initialProbability === undefined) return 
     let anchor
-    return initialProbability
+    if(bestBid !== undefined && bestAsk !== undefined){
+        anchor = (bestBid+bestAsk)/2
+    }else if (bestBid !== undefined){
+        anchor = bestBid + tick
+    }else if (bestAsk !== undefined){
+        anchor = bestAsk - tick
+    }else{
+        anchor = initialProbability
+    }
+
+    return Number(anchor.toFixed(2))
 }
 const getBestBid = (ordersObj: {}) => {
     const prices = Object.keys(ordersObj).map(Number)
