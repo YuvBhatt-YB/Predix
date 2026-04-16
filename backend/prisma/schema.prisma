@@ -84,6 +84,7 @@ model Holdings {
   shares Float @default(0)
   lockedShares Float @default(0)
   avgPrice Float
+  outcome OrderOutcome @default(YES)
   userId String
   marketId String
   createdAt DateTime @default(now())
@@ -92,7 +93,7 @@ model Holdings {
   user User @relation(fields: [userId],references: [id],onDelete: Cascade)
   market Market @relation(fields:[marketId],references: [id],onDelete: Cascade)
 
-  @@unique([userId,marketId])
+  @@unique([userId,marketId,outcome])
 }
 model Market {
   id String @id @default(cuid())
@@ -151,6 +152,7 @@ model Order {
 
   @@index([marketId,createdAt])
   @@index([userId,createdAt])
+  @@index([userId,marketId,status])
 }
 
 model Trade {

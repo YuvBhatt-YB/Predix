@@ -59,3 +59,25 @@ export type Depth = {
         "SELL":{}
     }
 }
+
+export type Ladder = {
+    "BUY":number[],
+    "SELL":number[]
+}
+
+export type DesiredOrder = {
+    userId: string
+    marketId: string
+    type: "BUY" | "SELL"
+    orderType: "LIMIT"
+    outcome: "YES" | "NO"
+    quantity: number
+    price: number
+    status: "OPEN"
+    createdAt: string
+}
+
+export type DesiredOrders = {
+    YES: DesiredOrder[],
+    NO:DesiredOrder[]
+}

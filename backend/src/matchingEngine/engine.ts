@@ -239,6 +239,7 @@ const executeTrade = async (
         const execPrice = oppOrder.price;
         const buyerId = type === "BUY" ? order.userId : oppOrder.userId;
         const sellerId = type === "SELL" ? order.userId : oppOrder.userId;
+        const oppOutcome = outcome === "YES" ? "NO" : "YES"
         await tx.trade.create({
             data: {
                 marketId: order.marketId,
@@ -281,7 +282,12 @@ const executeTrade = async (
         //buyer
         const existingHoldings = await tx.holdings.findUnique({
             where: {
-                userId_marketId: { userId: buyerId, marketId: order.marketId },
+                userId_marketId_outcome: { userId: buyerId, marketId: order.marketId, outcome: outcome },
+            },
+        });
+        const buyerOppExistingHoldings = await tx.holdings.findUnique({
+            where: {
+                userId_marketId_outcome: { userId: buyerId, marketId: order.marketId, outcome: oppOutcome },
             },
         });
 
@@ -304,8 +310,25 @@ const executeTrade = async (
                     marketId: order.marketId,
                     shares: fillQuantity,
                     avgPrice: execPrice,
+                    outcome:outcome
                 },
             });
+        }
+        if(buyerOppExistingHoldings){
+            await tx.holdings.update({
+                where: { id: buyerOppExistingHoldings.id },
+                data: { shares: { decrement: fillQuantity } },
+            }); 
+        }else{
+            await tx.holdings.create({
+                data: {
+                    userId: buyerId,
+                    marketId: order.marketId,
+                    shares: -fillQuantity,
+                    avgPrice: 1-execPrice,
+                    outcome:oppOutcome
+                }
+            })
         }
         await tx.wallet.update({
             where: { userID: buyerId },
@@ -323,12 +346,33 @@ const executeTrade = async (
         });
         await tx.holdings.update({
             where: {
-                userId_marketId: { userId: sellerId, marketId: order.marketId },
+                userId_marketId_outcome: { userId: sellerId, marketId: order.marketId,outcome: outcome },
             },
             data: {
                 lockedShares: { decrement: fillQuantity },
             },
         });
+        const sellerOppExistingHoldings = await tx.holdings.findUnique({
+            where: {
+                userId_marketId_outcome: { userId: sellerId, marketId: order.marketId, outcome: oppOutcome },
+            },
+        });
+        if(sellerOppExistingHoldings){
+            await tx.holdings.update({
+                where: { id: sellerOppExistingHoldings.id },
+                data: { shares: { increment: fillQuantity } },
+            }); 
+        }else{
+            await tx.holdings.create({
+                data: {
+                    userId: sellerId,
+                    marketId: order.marketId,
+                    shares: fillQuantity,
+                    avgPrice: 1-execPrice,
+                    outcome:oppOutcome
+                }
+            })
+        }
     });
 };
 

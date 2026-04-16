@@ -56,7 +56,7 @@ export const placeOrder = async (userId: string,marketId: string,quantity: numbe
                 });
             } else if (type === "SELL") {
                 const holdings = await tx.holdings.findUnique({
-                    where: { userId_marketId: { userId, marketId } },
+                    where: { userId_marketId_outcome: { userId, marketId,outcome } },
                 });
 
                 if (!holdings || holdings.shares < quantity) {
