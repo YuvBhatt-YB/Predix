@@ -1,9 +1,11 @@
 import Redis from "ioredis"
 import prisma from "../prisma"
 import { createRedisClient } from "./redis"
-import { object } from "zod"
-import { Depth, DesiredOrder, DesiredOrders, Ladder, Order } from "../types/Trade"
+import { includes, object } from "zod"
+import { Depth, depthAddedEventType, depthUpdatedEventType, DesiredOrder, DesiredOrders, FinalDesiredOrders, Ladder, marketBroadcastEventType, Order } from "../types/Trade"
 import { BOT, LP_CONFIG } from "./LP_CONFIG"
+import { addAndUpdatePriceDepth, addOrderToRedisQueue } from "./engine"
+import { OrderOutcome } from "@prisma/client"
 
 
 export const runLiquidityProviderWorker = async(markets: string[]) => {
@@ -40,7 +42,7 @@ export const runLiquidityProviderWorker = async(markets: string[]) => {
                 safeRebalance(marketId,BOT_ID,processingMarkets,commandClient)
             }
             
-        }, 50);
+        }, 100);
 
         setInterval(()=>{
             for(const marketId of markets){
@@ -124,7 +126,11 @@ const rebalanceMarket = async(marketId: string,BOT_ID:string,commandClient:Redis
     const desiredOrders = generateDesiredOrders(yesLadder,noLadder,BOT_ID,marketId,buySize,sellSize)
 
     //generate final desired orders
-    const finalDesiredOrders = await compareAndCreateFinalDesiredOrders(BOT_ID,marketId,desiredOrders)
+    const finalDesiredOrders: FinalDesiredOrders = await compareAndCreateFinalDesiredOrders(BOT_ID,marketId,desiredOrders)
+
+
+    await Promise.all(finalDesiredOrders.CANCEL.map(order => cancelOrder(order,commandClient)))
+    await Promise.all(finalDesiredOrders.CREATE.map(order => placeOrder(order,commandClient)))
 
     console.log(yesLadder)
     console.log(noLadder)
@@ -134,8 +140,8 @@ const rebalanceMarket = async(marketId: string,BOT_ID:string,commandClient:Redis
 
 const normalizePrice = (price: number) => Number(price.toFixed(2)) 
 const compareAndCreateFinalDesiredOrders = async(BOT_ID:string,marketId:string,desiredOrders:DesiredOrders) => {
-    const toCreate = []
-    const toCancel = []
+    const toCreate: DesiredOrder[] = []
+    const toCancel: Order[] = []
     const allDesired = [...desiredOrders.YES,...desiredOrders.NO]
     const existingOrdersMap = new Map()
 
@@ -376,10 +382,219 @@ const getReferencePrice = async(marketId:string) => {
             currentPriceYes:true
         }
     })
-    if(!price) console.error(" Market not found or market doesnt have initial price set") 
+    if(!price) console.error(" Market not found or market doesn't have initial price set") 
     return price?.currentPriceYes ?? 0.5
 }
 
+const placeOrder = async (order: DesiredOrder, commandClient: Redis) => {
+    const createdOrder = await prisma.$transaction(async (tx) => {
+        if (order.type === "BUY") {
+            const amount = order.quantity * order.price;
+            const wallet = await tx.wallet.findUnique({
+                where: {
+                    userID: order.userId,
+                },
+            });
+            if (!wallet || wallet.balance < amount) {
+                throw new Error("Insufficient Balance");
+            }
+            await tx.wallet.update({
+                where: {
+                    userID: order.userId,
+                },
+                data: {
+                    balance: { decrement: amount },
+                    locked: { increment: amount },
+                },
+            });
+        } else if (order.type === "SELL") {
+            const shares = order.quantity;
+            const holdings = await tx.holdings.findUnique({
+                where: {
+                    userId_marketId_outcome: {
+                        userId: order.userId,
+                        marketId: order.marketId,
+                        outcome: order.outcome,
+                    },
+                },
+            });
+            if (!holdings || holdings.shares < shares) {
+                throw new Error("Insufficient Shares");
+            }
+            await tx.holdings.update({
+                where: {
+                    userId_marketId_outcome: {
+                        userId: order.userId,
+                        marketId: order.marketId,
+                        outcome: order.outcome,
+                    },
+                },
+                data: {
+                    shares: { decrement: shares },
+                    lockedShares: { increment: shares },
+                },
+            });
+        }
+        return await tx.order.create({
+            data: {
+                userId: order.userId,
+                marketId: order.marketId,
+                type: order.type,
+                orderType: order.orderType,
+                outcome: order.outcome,
+                quantity: order.quantity,
+                remainingQuantity: order.quantity,
+                price: order.price,
+                status: "OPEN",
+            },
+        });
+    });
+
+    const updatedOrder = {
+        ...createdOrder,
+        createdAt: createdOrder.createdAt.toISOString(),
+    };
+
+    const currKey = `ORDERBOOK:${createdOrder.marketId}:${createdOrder.outcome}:${createdOrder.type}`;
+    await addOrderToRedisQueue(updatedOrder, commandClient, currKey);
+
+    const depthLevelAdded: depthAddedEventType[] = [];
+
+    await addAndUpdatePriceDepth(
+        createdOrder.marketId,
+        createdOrder.outcome,
+        createdOrder.type,
+        updatedOrder,
+        commandClient,
+        depthLevelAdded,
+    );
+
+    await Promise.all(
+        depthLevelAdded.map((level) =>
+            commandClient.xadd(
+                `MarketDataStream`,
+                "*",
+                "priceLevelAdded",
+                JSON.stringify(level),
+            ),
+        ),
+    );
+
+    return createdOrder;
+};
+
+const cancelOrder = async (orderToCancel: Order, commandClient: Redis) => {
+    const { id, marketId, type, outcome, userId } = orderToCancel;
+    await prisma.$transaction(async (tx) => {
+        if (type === "BUY") {
+            const refund =
+                orderToCancel.remainingQuantity * orderToCancel.price;
+
+            await tx.wallet.update({
+                where: {
+                    userID: userId,
+                },
+                data: {
+                    balance: { increment: refund },
+                    locked: { decrement: refund },
+                },
+            });
+        } else {
+            const refundShares = orderToCancel.remainingQuantity;
+
+            await tx.holdings.update({
+                where: {
+                    userId_marketId_outcome: {
+                        userId: userId,
+                        marketId: marketId,
+                        outcome: outcome as OrderOutcome,
+                    },
+                },
+                data: {
+                    shares: { increment: refundShares },
+                    lockedShares: { decrement: refundShares },
+                },
+            });
+        }
+
+        //mark order cancel
+        await tx.order.update({
+            where: {
+                id: id,
+            },
+            data: {
+                status: "CANCELLED",
+            },
+        });
+    });
+
+    //delete order
+    await commandClient.del(`Order:${id}`);
+
+    //delete order from orderbook
+    await commandClient.zrem(`ORDERBOOK:${marketId}:${outcome}:${type}`, id);
+
+    //update order depth
+    let depthLevelUpdates = new Map<string, depthUpdatedEventType>();
+
+    await orderDepthUpdate(orderToCancel, commandClient, depthLevelUpdates);
+
+    //broadcast depth update
+    await Promise.all(
+        Array.from(depthLevelUpdates.values()).map((update) =>
+            commandClient.xadd(
+                `MarketDataStream`,
+                "*",
+                "priceLevelUpdated",
+                JSON.stringify(update),
+            ),
+        ),
+    );
+    //unlock funds/shares
+};
+
+const orderDepthUpdate = async (order: Order, commandClient: Redis,depthLevelUpdates:Map<string,depthUpdatedEventType>) => {
+    const newPriceQty = await commandClient.hincrby(
+        `Depth:${order.marketId}:${order.outcome}:${order.type}`,
+        order.price.toString(),
+        -order.remainingQuantity,
+    );
+
+    if (newPriceQty > 0) {
+        const priceKey = `${order.marketId}:${order.outcome}:${order.type}:${order.price}`;
+        const priceDepthEvent: depthUpdatedEventType = {
+            broadcastEventType: marketBroadcastEventType.DEPTH_UPDATED,
+            marketId: order.marketId,
+            type: order.type,
+            outcome: order.outcome,
+            quantity: newPriceQty,
+            price: order.price,
+        };
+        depthLevelUpdates.set(priceKey, priceDepthEvent);
+    } else {
+        const priceKey = `${order.marketId}:${order.outcome}:${order.type}:${order.price}`;
+        const priceDepthEvent: depthUpdatedEventType = {
+            broadcastEventType: marketBroadcastEventType.DEPTH_UPDATED,
+            marketId: order.marketId,
+            type: order.type,
+            outcome: order.outcome,
+            quantity: 0,
+            price: order.price,
+        };
+        depthLevelUpdates.set(priceKey, priceDepthEvent);
+        await commandClient.hdel(
+            `Depth:${order.marketId}:${order.outcome}:${order.type}`,
+            order.price.toString(),
+        );
+    }
+
+    if (newPriceQty < 0) {
+        console.error(
+            "Price level quantity went negative for order ",
+            order.id,
+        );
+    }
+};
 
 export const ensureBotSetup = async() => {
 
@@ -422,3 +637,4 @@ export const ensureBotSetup = async() => {
         console.log("LP BOT Wallet Created")
     }
 }
+

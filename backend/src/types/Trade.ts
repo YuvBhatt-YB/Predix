@@ -81,3 +81,8 @@ export type DesiredOrders = {
     YES: DesiredOrder[],
     NO:DesiredOrder[]
 }
+
+export type FinalDesiredOrders = {
+    CREATE:DesiredOrder[],
+    CANCEL:Order[]
+}

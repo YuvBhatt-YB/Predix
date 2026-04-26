@@ -200,7 +200,7 @@ const priceDepthUpdatePerOrder = async(order:Order|null,oppOrder:Order,marketId:
         console.error("Price level quantity went negative for order ",oppOrder.id)
     }
 }
-const addAndUpdatePriceDepth = async(marketId:string,outcome:string,type:string,order:Order,orderBook:Redis,depthLevelAdded: depthAddedEventType[]) => {
+export const addAndUpdatePriceDepth = async(marketId:string,outcome:string,type:string,order:Order,orderBook:Redis,depthLevelAdded: depthAddedEventType[]) => {
     const depthPriceLevelExists = await orderBook.hexists(`Depth:${marketId}:${outcome}:${type}`,order.price.toString())
     if(depthPriceLevelExists === 0){
         await orderBook.hset(`Depth:${marketId}:${outcome}:${type}`,order.price.toString(),order.remainingQuantity.toString())
@@ -414,17 +414,17 @@ const redisOrderBookUpdate = async (
     }
 };
 
-const addOrderToRedisQueue = async (
+export const addOrderToRedisQueue = async (
     order: Order,
     orderBook: Redis,
     currKey: string,
 ) => {
     const time = new Date(order.createdAt).getTime();
-    const priceMultiplier: number = 1_000_000_000_000;
+    const priceMultiplier: number =1e13;
     const score =
         order.type === "BUY"
-            ? order.price * priceMultiplier + (priceMultiplier - time)
-            : -order.price * priceMultiplier + (priceMultiplier - time);
+            ? order.price * priceMultiplier + priceMultiplier - time
+            : -order.price * priceMultiplier + priceMultiplier - time;
     const hashExists = await orderBook.hexists(`Order:${order.id}`, "id");
     if (hashExists === 0) {
         await orderBook.hset(`Order:${order.id}`, order);
