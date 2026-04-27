@@ -42,7 +42,7 @@ export const runLiquidityProviderWorker = async(markets: string[]) => {
                 safeRebalance(marketId,BOT_ID,processingMarkets,commandClient)
             }
             
-        }, 100);
+        }, 300);
 
         setInterval(()=>{
             for(const marketId of markets){
@@ -69,6 +69,32 @@ const safeRebalance = async(marketId:string,BOT_ID:string,processingMarkets: Set
         processingMarkets.delete(marketId)
     }
 }
+const clampPrice = (p:number) => {
+    return Number(Math.min(Math.max(p,0.01),0.99).toFixed(2))
+}
+
+const clampAnchor = (price:number) => {
+    return Math.max(0.05,Math.min(0.95,price))
+}
+
+const getLPstate = async(marketId:string,redis:Redis) => {
+    const data = await redis.hgetall(`LP_STATE:${marketId}`)
+    if(!data || Object.keys(data).length === 0) return null
+
+    return {
+        anchor:Number(data.anchor),
+        skew:Number(data.skew),
+        lastUpdate:Number(data.lastUpdate || 0)
+    }
+}
+const setLPState = async(marketId:string,redis:Redis,anchor:number,skew:number) => {
+    await redis.hset(`LP_STATE:${marketId}`,{
+        anchor:anchor.toString(),
+        skew:skew.toString(),
+        lastUpdate:Date.now().toString()
+    })
+}
+
 const rebalanceMarket = async(marketId: string,BOT_ID:string,commandClient:Redis) => {
     console.log("Entered rebalanceMarket", marketId)
     
@@ -103,16 +129,62 @@ const rebalanceMarket = async(marketId: string,BOT_ID:string,commandClient:Redis
     const yesTotal = (holdings.YES?.shares || 0) + (holdings.YES?.lockedShares || 0)
     const noTotal = (holdings.NO?.shares || 0) + (holdings.NO?.lockedShares || 0)
     const inventory = yesTotal - noTotal
-    const skew = generateSkew(inventory,LP_CONFIG.maxInventory)
-    const shift = skew * LP_CONFIG.maxShift
+    
+    if(Math.abs(inventory) > LP_CONFIG.maxInventory * 2){
+        console.log("Inventory EXTREME - resetting LP")
+
+        const existingOrders = await prisma.order.findMany({
+            where:{
+                userId:BOT_ID,
+                marketId,
+                status:"OPEN"
+            }
+        })
+
+        await Promise.all(existingOrders.map(order => cancelOrder({...order,createdAt:order.createdAt.toISOString()},commandClient)))
+
+        return
+    }
 
 
-    const yesAdjustedAnchor = yesAnchor - shift
-    const noAdjustedAnchor = noAnchor - shift
+    let adjustedInventory = inventory
+
+    if(Math.abs(inventory) > LP_CONFIG.maxInventory * 1.5){
+        console.log("Inventory too large, reducing aggression")
+        adjustedInventory = inventory * 0.5
+    }
+
+    const rawSkew = generateSkew(adjustedInventory,LP_CONFIG.maxInventory * 2)
+    const skew = rawSkew * 0.4
+    const shift = skew * (LP_CONFIG.maxShift * 0.5)
+
+
+    const yesAdjustedAnchor = clampAnchor(inventory > 0 ? yesAnchor - shift : yesAnchor + shift)
+    const noAdjustedAnchor = clampAnchor(inventory > 0 ? noAnchor + shift : noAnchor - shift)
+
+    const prevState = await getLPstate(marketId,commandClient)
+
+    if(prevState?.lastUpdate){
+        const timeDiff = Date.now() - prevState.lastUpdate
+        if(timeDiff < LP_CONFIG.minTimeGap){
+            console.log("Skipping Rebalance (CoolDown)")
+            return
+        }
+    }
+
+    if(prevState){
+        const anchorChange = Math.abs(prevState.anchor - Number(yesAdjustedAnchor.toFixed(2)))
+        const skewChange = Math.abs(prevState.skew - Number(skew.toFixed(4)))
+
+        if(anchorChange < LP_CONFIG.minAnchorChange && skewChange < LP_CONFIG.minSkewChange){
+            console.log("Skipping rebalance ( No Significant Change ) ")
+            return
+        }
+    }
     
     //quantity skew
-    const buySize = Math.max(10,LP_CONFIG.baseOrderSize * (1 - skew))
-    const sellSize = Math.max(10,LP_CONFIG.baseOrderSize * (1 + skew))
+    const buySize = Math.min(LP_CONFIG.maxOrderSize,Math.round(Math.max(2000,LP_CONFIG.baseOrderSize * (1-skew))))
+    const sellSize = Math.min(LP_CONFIG.maxOrderSize,Math.round(Math.max(2000,LP_CONFIG.baseOrderSize * (1+skew))))
 
     console.log(`Inventory: ${inventory}, Skew: ${skew}, Shift: ${shift}`)
     console.log(`Buy Size: ${buySize}, Sell Size: ${sellSize}`)
@@ -127,18 +199,59 @@ const rebalanceMarket = async(marketId: string,BOT_ID:string,commandClient:Redis
 
     //generate final desired orders
     const finalDesiredOrders: FinalDesiredOrders = await compareAndCreateFinalDesiredOrders(BOT_ID,marketId,desiredOrders)
+    
+    if(finalDesiredOrders.CREATE.length === 0 && finalDesiredOrders.CANCEL.length === 0){
+        await setLPState(marketId,commandClient,Number(yesAdjustedAnchor.toFixed(2)),Number(skew.toFixed(4)))
+        return
+    }
 
+    try {
+        await Promise.all(
+            finalDesiredOrders.CANCEL.map((order) =>
+                cancelOrder(order, commandClient),
+            ),
+        );
+        
 
-    await Promise.all(finalDesiredOrders.CANCEL.map(order => cancelOrder(order,commandClient)))
-    await Promise.all(finalDesiredOrders.CREATE.map(order => placeOrder(order,commandClient)))
+        const createdOrders = await Promise.all(
+            finalDesiredOrders.CREATE.map((order) =>
+                placeOrder(order, commandClient),
+            ),
+        );
 
-    console.log(yesLadder)
-    console.log(noLadder)
-    console.log(finalDesiredOrders)
+        const validOrders = createdOrders.filter(o => o !== null)
+        console.log(`LP placed ${validOrders.length}/${finalDesiredOrders.CREATE.length} orders`);
+
+        console.log(yesLadder);
+        console.log(noLadder);
+        console.log(finalDesiredOrders);
+
+        if (validOrders.length === 0) {
+            console.log(
+                "LP could not place any orders, skipping state update",
+            );
+            return;
+        }
+        if (validOrders.length < finalDesiredOrders.CREATE.length * 0.5) {
+            console.log("Too many failed orders, possible constraint issue");
+        }
+
+        await setLPState(
+            marketId,
+            commandClient,
+            Number(yesAdjustedAnchor.toFixed(2)),
+            Number(skew.toFixed(4)),
+        );
+    } catch (err) {
+        console.error("LP Execution Failed", err);
+    }
     
 }
 
 const normalizePrice = (price: number) => Number(price.toFixed(2)) 
+
+const roundQty = (q:number) => Math.round(q)
+
 const compareAndCreateFinalDesiredOrders = async(BOT_ID:string,marketId:string,desiredOrders:DesiredOrders) => {
     const toCreate: DesiredOrder[] = []
     const toCancel: Order[] = []
@@ -172,7 +285,7 @@ const compareAndCreateFinalDesiredOrders = async(BOT_ID:string,marketId:string,d
                 toCreate.push(order)
             }else{
                 const existingOrder:Order = existingOrdersMap.get(key)
-                if(Math.abs(existingOrder.remainingQuantity - order.quantity) > 0.0001){
+                if(Math.abs(existingOrder.remainingQuantity - order.quantity) > 1){
                     toCancel.push(existingOrder)
                     toCreate.push(order)
                 }
@@ -191,6 +304,8 @@ const compareAndCreateFinalDesiredOrders = async(BOT_ID:string,marketId:string,d
         }
     }
 }
+
+const normalize = (x:number) => Number(x.toFixed(2))
 const generateDesiredOrders = (yesLadder:Ladder,noLadder:Ladder,BOT_ID:string,marketId:string,buySize:number,sellSize:number) => {
     const desiredYesOrders: DesiredOrder[] = []
     const desiredNoOrders: DesiredOrder[] = []
@@ -202,8 +317,8 @@ const generateDesiredOrders = (yesLadder:Ladder,noLadder:Ladder,BOT_ID:string,ma
             type:"BUY",
             orderType:"LIMIT",
             outcome:"YES",
-            quantity:buySize,
-            price:price,
+            quantity:roundQty(buySize),
+            price:normalize(price),
             status:"OPEN",
             createdAt:new Date().toISOString()
         })
@@ -215,8 +330,8 @@ const generateDesiredOrders = (yesLadder:Ladder,noLadder:Ladder,BOT_ID:string,ma
             type:"SELL",
             orderType:"LIMIT",
             outcome:"YES",
-            quantity:sellSize,
-            price:price,
+            quantity:roundQty(sellSize),
+            price:normalize(price),
             status:"OPEN",
             createdAt:new Date().toISOString()
         })
@@ -228,8 +343,8 @@ const generateDesiredOrders = (yesLadder:Ladder,noLadder:Ladder,BOT_ID:string,ma
             type:"BUY",
             orderType:"LIMIT",
             outcome:"NO",
-            quantity:buySize,
-            price:price,
+            quantity:roundQty(buySize),
+            price:normalize(price),
             status:"OPEN",
             createdAt:new Date().toISOString()
         })
@@ -241,8 +356,8 @@ const generateDesiredOrders = (yesLadder:Ladder,noLadder:Ladder,BOT_ID:string,ma
             type:"SELL",
             orderType:"LIMIT",
             outcome:"NO",
-            quantity:sellSize,
-            price:price,
+            quantity:roundQty(sellSize),
+            price:normalize(price),
             status:"OPEN",
             createdAt:new Date().toISOString()
         })
@@ -289,8 +404,8 @@ const generateLadder = (tick:number,levels:number,anchorPrice:number) => {
     const sellLevels = []
 
     for(let i = 1;i<=levels;i++){
-        buyLevels.push(Number((anchorPrice - i*tick).toFixed(2)))
-        sellLevels.push(Number((anchorPrice + i*tick).toFixed(2)))
+        buyLevels.push(clampPrice(anchorPrice - i * tick))
+        sellLevels.push(clampPrice(anchorPrice + i * tick))
     }
 
     return {
@@ -303,6 +418,10 @@ const computeAnchor = async(bestBid:number|undefined,bestAsk:number|undefined,ti
     const initialProbability = marketData?.initialPriceYes
     if(initialProbability === undefined) return 
     let anchor
+    
+    if(!bestBid && !bestAsk){
+        return Number(initialProbability.toFixed(2))
+    }
     if(bestBid !== undefined && bestAsk !== undefined){
         anchor = (bestBid+bestAsk)/2
     }else if (bestBid !== undefined){
@@ -388,16 +507,23 @@ const getReferencePrice = async(marketId:string) => {
 
 const placeOrder = async (order: DesiredOrder, commandClient: Redis) => {
     const createdOrder = await prisma.$transaction(async (tx) => {
+        let finalQty = order.quantity
         if (order.type === "BUY") {
-            const amount = order.quantity * order.price;
+            
             const wallet = await tx.wallet.findUnique({
                 where: {
                     userID: order.userId,
                 },
             });
-            if (!wallet || wallet.balance < amount) {
-                throw new Error("Insufficient Balance");
+            if (!wallet) {
+                console.log("LP:No Wallet Found")
+                return null
             }
+            const maxAffordQty = Math.floor(wallet.balance/order.price)
+            finalQty = Math.min(order.quantity,maxAffordQty)
+
+            if(finalQty <=0) return null
+            const amount = finalQty * order.price;
             await tx.wallet.update({
                 where: {
                     userID: order.userId,
@@ -408,7 +534,7 @@ const placeOrder = async (order: DesiredOrder, commandClient: Redis) => {
                 },
             });
         } else if (order.type === "SELL") {
-            const shares = order.quantity;
+            
             const holdings = await tx.holdings.findUnique({
                 where: {
                     userId_marketId_outcome: {
@@ -418,9 +544,14 @@ const placeOrder = async (order: DesiredOrder, commandClient: Redis) => {
                     },
                 },
             });
-            if (!holdings || holdings.shares < shares) {
-                throw new Error("Insufficient Shares");
+            if (!holdings) {
+                console.log("LP:NO Holdings Found, skipping SELL");
+                return null
             }
+            const availableShares = holdings.shares
+            finalQty = Math.min(order.quantity,availableShares)
+
+            if(finalQty <=0) return null
             await tx.holdings.update({
                 where: {
                     userId_marketId_outcome: {
@@ -430,8 +561,8 @@ const placeOrder = async (order: DesiredOrder, commandClient: Redis) => {
                     },
                 },
                 data: {
-                    shares: { decrement: shares },
-                    lockedShares: { increment: shares },
+                    shares: { decrement: finalQty},
+                    lockedShares: { increment: finalQty },
                 },
             });
         }
@@ -442,13 +573,15 @@ const placeOrder = async (order: DesiredOrder, commandClient: Redis) => {
                 type: order.type,
                 orderType: order.orderType,
                 outcome: order.outcome,
-                quantity: order.quantity,
-                remainingQuantity: order.quantity,
+                quantity: finalQty,
+                remainingQuantity: finalQty,
                 price: order.price,
                 status: "OPEN",
             },
         });
     });
+
+    if(!createdOrder) return null
 
     const updatedOrder = {
         ...createdOrder,
@@ -598,14 +731,14 @@ const orderDepthUpdate = async (order: Order, commandClient: Redis,depthLevelUpd
 
 export const ensureBotSetup = async() => {
 
-    const botExists = await prisma.user.findUnique({
+    let bot = await prisma.user.findUnique({
         where:{
             username:BOT.id
         }
     })
 
-    if(!botExists){
-        await prisma.user.create({
+    if(!bot){
+        bot = await prisma.user.create({
             data:{
                 username:BOT.id,
                 password:BOT.password,
@@ -615,13 +748,10 @@ export const ensureBotSetup = async() => {
         })
         console.log("LP BOT User Created")
     }
-    if(!botExists) {
-        console.error("LP_BOT doesn't exists")
-        return
-    } 
+    
     const walletExists = await prisma.wallet.findUnique({
         where:{
-            userID:botExists.id
+            userID:bot.id
         }
     })
 
@@ -629,7 +759,7 @@ export const ensureBotSetup = async() => {
     if(!walletExists){
         await prisma.wallet.create({
             data:{
-                userID:botExists.id,
+                userID:bot.id,
                 balance:BOT.balance,
                 locked:0
             }

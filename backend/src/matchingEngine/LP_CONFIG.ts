@@ -1,3 +1,5 @@
+
+
 interface Bot {
     id:string,
     password:string,
@@ -9,8 +11,12 @@ interface LP_CONFIG {
     maxInventory:number,
     maxShift:number,
     baseOrderSize:number,
+    maxOrderSize:number,
     tick:number,
-    levels:number
+    levels:number,
+    minAnchorChange:number,
+    minSkewChange:number,
+    minTimeGap:number
 }
 
 export const BOT:Bot = {
@@ -25,7 +31,11 @@ export const LP_CONFIG:LP_CONFIG = {
     maxInventory:20000,
     maxShift:0.05,
     baseOrderSize:5000,
+    maxOrderSize:10000,
     tick:0.02,
-    levels:3
+    levels:3,
+    minAnchorChange:0.01,
+    minSkewChange:0.02,
+    minTimeGap:500
 }
 
