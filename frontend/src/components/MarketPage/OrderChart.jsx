@@ -38,7 +38,7 @@ const OrderChart = ({yesAsks,yesBids,noAsks,noBids,yesSpread,noSpread,marketPage
               visibleYesAsks && visibleYesAsks.map((ask) => (
                 <TableRow key={ask.price}>
                   <TableCell className="font-medium  relative "><div className='absolute top-0 left-0  bg-[#FCEBEB] h-full transition-transform duration-120 ease-out w-full ' style={{transform: `scaleX(${ask.width/100})`,transformOrigin:"left"}}></div></TableCell>
-                  <TableCell className="text-darkRed font-secondary font-bold">{ask.price * 100}¢</TableCell>
+                  <TableCell className="text-darkRed font-secondary font-bold">{(ask.price * 100).toFixed(0)}¢</TableCell>
                   <TableCell className="text-primary font-secondary">$ {(ask.price * ask.quantity).toFixed(0)}</TableCell>
                   <TableCell className="text-right text-primary font-secondary">{ask.quantity}</TableCell>
                 </TableRow>
@@ -49,7 +49,7 @@ const OrderChart = ({yesAsks,yesBids,noAsks,noBids,yesSpread,noSpread,marketPage
               visibleNoAsks && visibleNoAsks.map((ask) => (
                 <TableRow key={ask.price}>
                   <TableCell className="font-medium  relative "><div className='absolute top-0 left-0  bg-[#FCEBEB] h-full transition-transform duration-120 ease-out w-full ' style={{transform: `scaleX(${ask.width/100})`,transformOrigin:"left"}}></div></TableCell>
-                  <TableCell className="text-darkRed font-secondary font-bold">{ask.price * 100}¢</TableCell>
+                  <TableCell className="text-darkRed font-secondary font-bold">{(ask.price * 100).toFixed(0)}¢</TableCell>
                   <TableCell className="text-primary font-secondary">$ {(ask.price * ask.quantity).toFixed(0)}</TableCell>
                   <TableCell className="text-right text-primary font-secondary">{ask.quantity}</TableCell>
                 </TableRow>
@@ -85,7 +85,7 @@ const OrderChart = ({yesAsks,yesBids,noAsks,noBids,yesSpread,noSpread,marketPage
               visibleYesBids && visibleYesBids.map((bid) => (
                 <TableRow key={bid.price}>
                   <TableCell className="font-medium  relative "><div className='absolute top-0 left-0  bg-[#EAF5EE] h-full transition-transform duration-120 ease-out w-full ' style={{transform: `scaleX(${bid.width/100})`,transformOrigin:"left"}}></div></TableCell>
-                  <TableCell className="text-darkGreen font-secondary font-bold">{bid.price * 100}¢</TableCell>
+                  <TableCell className="text-darkGreen font-secondary font-bold">{(bid.price * 100).toFixed(0)}¢</TableCell>
                   <TableCell className="text-primary font-secondary">$ {(bid.price * bid.quantity).toFixed(0)}</TableCell>
                   <TableCell className="text-right text-primary font-secondary">{bid.quantity}</TableCell>
                 </TableRow>
@@ -96,7 +96,7 @@ const OrderChart = ({yesAsks,yesBids,noAsks,noBids,yesSpread,noSpread,marketPage
               visibleNoBids && visibleNoBids.map((bid) => (
                 <TableRow key={bid.price}>
                   <TableCell className="font-medium  relative "><div className='absolute top-0 left-0  bg-[#EAF5EE] h-full transition-transform duration-120 ease-out w-full ' style={{transform: `scaleX(${bid.width/100})`,transformOrigin:"left"}}></div></TableCell>
-                  <TableCell className="text-darkGreen font-secondary font-bold">{bid.price * 100}¢</TableCell>
+                  <TableCell className="text-darkGreen font-secondary font-bold">{(bid.price * 100).toFixed(0)}¢</TableCell>
                   <TableCell className="text-primary font-secondary">$ {(bid.price * bid.quantity).toFixed(0)}</TableCell>
                   <TableCell className="text-right text-primary font-secondary">{bid.quantity}</TableCell>
                 </TableRow>

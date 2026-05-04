@@ -27,3 +27,14 @@ export const calculateSellAmount = (shares,option,currentPrice) => {
 
   return payout;
 }
+
+export const formatVolume = (volume) => {
+    if (volume < 1000) {
+        return volume.toFixed(2)
+    }
+
+    return new Intl.NumberFormat("en-US", {
+        notation: "compact",
+        maximumFractionDigits: 2
+    }).format(volume)
+}

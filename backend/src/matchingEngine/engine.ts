@@ -1,8 +1,9 @@
-import { depthAddedEventType, depthUpdatedEventType, marketBroadcastEventType, Order, TradeExecutedEventType } from "../types/Trade";
+import { depthAddedEventType, depthUpdatedEventType, marketBroadcastEventType, marketUpdateEventType, Order, TradeExecutedEventType } from "../types/Trade";
 import Redis from "ioredis";
 
 import prisma from "../prisma";
 import { OrderOutcome } from "@prisma/client";
+import { BADFLAGS } from "dns";
 
 export const matchOrder = async (
     order: Order,
@@ -18,6 +19,7 @@ export const matchOrder = async (
         let trades = []
         let depthLevelUpdates = new Map<string,depthUpdatedEventType>()
         let depthLevelAdded: depthAddedEventType[] = []
+        let currentVolume = Number(await orderBook.get(`MARKET_VOLUME:${marketId}`) || 0)
         if(orderType === "LIMIT"){
             await addOrderToRedisQueue(order, orderBook, currKey);
             await addAndUpdatePriceDepth(marketId,outcome,type,order,orderBook,depthLevelAdded);
@@ -60,8 +62,16 @@ export const matchOrder = async (
                 remainingQty,
                 type,
                 outcome as OrderOutcome,
-                orderType
+                orderType,
+                orderBook
             );
+
+            const tradeValue = oppOrder.price * fillQuantity
+
+            currentVolume+=tradeValue
+
+            await orderBook.incrbyfloat(`MARKET_VOLUME:${marketId}`,tradeValue)
+
             await redisOrderBookUpdate(
                 orderType === "LIMIT" ?order : null,
                 oppOrder,
@@ -105,6 +115,18 @@ export const matchOrder = async (
             for(const trade of trades){
                 streamPipeline.xadd(`MarketDataStream`,"*","tradeExecuted",JSON.stringify(trade))
             }
+            const lastTrade = trades[trades.length-1]
+            
+            await orderBook.set(`MARKET_PRICE:${marketId}`,lastTrade?.price || 0.5)
+            
+            const marketUpdateEvent:marketUpdateEventType = {
+                broadcastEventType:marketBroadcastEventType.MARKET_UPDATED,
+                marketId:marketId,
+                price:lastTrade?.price || 0.5,
+                volume:currentVolume
+            }
+
+            streamPipeline.xadd("MarketDataStream","*","marketUpdated",JSON.stringify(marketUpdateEvent))
         }
         if(depthLevelUpdates.size > 0){
             shouldTriggerLP = true
@@ -233,12 +255,28 @@ const executeTrade = async (
     remainingQuantity: number,
     type: string,
     outcome: OrderOutcome,
-    orderType:string
+    orderType:string,
+    orderBook:Redis
 ) => {
-    await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx) => {
         const execPrice = oppOrder.price;
         const buyerId = type === "BUY" ? order.userId : oppOrder.userId;
         const sellerId = type === "SELL" ? order.userId : oppOrder.userId;
+        const buyerWalletID = await tx.wallet.findUnique({
+            where:{userID:buyerId},
+            select:{
+                id:true
+            }
+        })
+        const sellerWalletID = await tx.wallet.findUnique({
+            where:{userID:sellerId},
+            select:{
+                id:true
+            }
+        })
+        if (!buyerWalletID || !sellerWalletID) {
+            throw new Error("Wallet not found during trade execution");
+        }
         const oppOutcome = outcome === "YES" ? "NO" : "YES"
         await tx.trade.create({
             data: {
@@ -337,6 +375,24 @@ const executeTrade = async (
                 balance: { increment: refund },
             },
         });
+        await tx.transaction.create({
+            data:{
+                type:"TRADE_PAYOUT",
+                amount:actualCost,
+                description:`BOUGHT ${fillQuantity} SHARES @ ${execPrice}`,
+                walletId:buyerWalletID.id
+            }
+        })
+        if(refund > 0){
+            await tx.transaction.create({
+                data:{
+                    type:"TRADE_RELEASE",
+                    amount:refund,
+                    description:`REFUNDED $${refund} ( BETTER PRICE EXECUTION )`,
+                    walletId:buyerWalletID.id
+                }
+            })
+        }
         //seller
         await tx.wallet.update({
             where: { userID: sellerId },
@@ -344,6 +400,14 @@ const executeTrade = async (
                 balance: { increment: actualCost },
             },
         });
+        await tx.transaction.create({
+            data:{
+                type:"TRADE_PAYOUT",
+                amount:actualCost,
+                description:`SOLD ${fillQuantity} SHARES @ ${execPrice}`,
+                walletId:sellerWalletID.id
+            }
+        })
         await tx.holdings.update({
             where: {
                 userId_marketId_outcome: { userId: sellerId, marketId: order.marketId,outcome: outcome },
@@ -373,7 +437,33 @@ const executeTrade = async (
                 }
             })
         }
+        const [buyerWallet,sellerWallet] = await Promise.all([
+            tx.wallet.findUnique({
+                where:{userID:buyerId}
+            }),
+            tx.wallet.findUnique({
+                where:{
+                    userID:sellerId
+                }
+            })
+        ])
+
+        return {buyerId,sellerId,buyerWallet,sellerWallet}
+    
     });
+
+    if(result){
+        orderBook.publish("WALLET_UPDATE",JSON.stringify({
+            userId:result.buyerId,
+            balance:result.buyerWallet?.balance ?? 0,
+            locked: result.buyerWallet?.locked ?? 0
+        }))
+        orderBook.publish("WALLET_UPDATE",JSON.stringify({
+            userId:result.sellerId,
+            balance:result.sellerWallet?.balance ?? 0,
+            locked: result.sellerWallet?.locked ?? 0
+        }))
+    }
 };
 
 const redisOrderBookUpdate = async (

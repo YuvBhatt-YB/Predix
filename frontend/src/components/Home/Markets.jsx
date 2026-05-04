@@ -12,6 +12,7 @@ import Loading from '../ui/Loading'
 const Markets = () => {
   const {loading,markets,debouncedLoading} = useSelector((state)=> state.markets)
   const {loaderRef} = useMarketData()
+  const marketsArray = Object.values(markets)
   
   return (
     <div >
@@ -20,11 +21,11 @@ const Markets = () => {
         <div className="w-full">
           <Search />
         </div>
-        
+        {/* <p>{JSON.stringify(marketsArray)}</p> */}
         {debouncedLoading || loading ? (
           <div className=' w-full flex items-center justify-center'><Loading /></div>
-        ) : markets && markets.length > 0 ? (<div className="  w-full grid md:grid-cols-2 lg:grid-cols-3 gap-3 py-4">
-        {markets.map(market => (<MarketModal key={market.id} marketDetails={market} />))}  
+        ) : marketsArray && marketsArray.length > 0 ? (<div className="  w-full grid md:grid-cols-2 lg:grid-cols-3 gap-3 py-4">
+        {marketsArray.map(market => (<MarketModal key={market.id} marketDetails={market} />))}  
         </div>): (<div><NotFound text="No Markets" /></div>)}
         <div className=' h-10' ref={loaderRef}></div>
         </div>

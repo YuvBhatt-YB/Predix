@@ -8,6 +8,7 @@ import { formatAmount } from '@/utils/amount';
 
 const Navbar = () => {
   const userData = useSelector((state)=> state.user.userData)
+  console.log(userData)
   const navigate = useNavigate()
   const handleNavigateFunds = () => {
     navigate(`/funds`)

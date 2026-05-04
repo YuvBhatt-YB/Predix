@@ -4,16 +4,17 @@ import { Progress } from "@/components/ui/progress"
 import { FaAnglesUp,FaAnglesDown } from "react-icons/fa6";
 import eth from "../../../assets/eth.webp"
 import { Link, useNavigate } from 'react-router-dom';
+import { formatVolume } from '@/utils/amount';
 
 const MarketModal = ({marketDetails}) => {
-  const currPrice = marketDetails.currentPriceYes * 100
-    const [progress,setProgress] = useState(currPrice)
+    const currPrice = (marketDetails.price * 100).toFixed(0)
+    const progress = Number((marketDetails.price * 100).toFixed(0))
     const navigate = useNavigate()
     const handleClick = () => {[
       navigate(`/home/${marketDetails.id}`)
     ]}
   return (
-    <div className=" border-1 font-secondar p-2 rounded-small border-borderPrimary bg-white shadow-md" >
+    <div className=" border-1 font-secondary p-2 rounded-small border-borderPrimary bg-white shadow-md" >
       <div className=' flex flex-col gap-3'>
         <div className='flex items-center gap-2'>
             <Progress value={progress} className="flex-1 bg-light [&>div]:bg-progress"  />
@@ -28,7 +29,7 @@ const MarketModal = ({marketDetails}) => {
             <Button onClick={handleClick} size="lg" className="flex-1/2 text-darkRed bg-lightRed rounded-small hover:bg-darkRed hover:text-white transition duration-200 ease-in-out cursor-pointer"><FaAnglesDown /> Buy No</Button>
         </div>
         <div>
-            <p className=' text-small text-textGray'>$ {marketDetails.totalVolume} Vol</p>
+            <p className=' text-small text-textGray'>$ {formatVolume(marketDetails.volume)} Vol</p>
         </div>
       </div>
     </div>

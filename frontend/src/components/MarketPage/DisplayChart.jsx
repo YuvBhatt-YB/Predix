@@ -2,10 +2,11 @@ import React, { useEffect, useRef, useState } from 'react'
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { CheckCircle2Icon, InfoIcon } from "lucide-react"
 import Chart from './Chart'
+import { formatVolume } from '@/utils/amount'
 
 
 
-const DisplayChart = ({marketData,lastProbability,chartData,marketPageError}) => {
+const DisplayChart = ({marketData,lastProbability,chartData,marketPageError,volume}) => {
   const [direction,setDirection] = useState("neutral")
   const prevProbability = useRef(null)
   useEffect(() => {
@@ -42,7 +43,7 @@ const DisplayChart = ({marketData,lastProbability,chartData,marketPageError}) =>
               </div>
               <div>
                   <p className=" font-secondary text-labelColor">
-                      $ {marketData.totalVolume} Vol
+                      $ {formatVolume(volume)} Vol
                   </p>
               </div>
           </div>
@@ -51,8 +52,8 @@ const DisplayChart = ({marketData,lastProbability,chartData,marketPageError}) =>
                   className={`font-secondary font-semibold text-xl ${color} transition-colors duration-300 ease-in-out `}
               >
                   {lastProbability !== 0
-                      ? lastProbability * 100
-                      : marketData.currentPriceYes * 100}
+                      ? (lastProbability * 100).toFixed(0)
+                      : (marketData.currentPriceYes * 100).toFixed(0)}
                   % Chance
               </p>
               <div className=" w-full ">

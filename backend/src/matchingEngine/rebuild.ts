@@ -1,7 +1,7 @@
 import prisma from "../prisma";
 import { Order } from "../types/Trade";
 import { parseRedisOrder } from "./engine";
-import { createDepthRebuildRedisClient, createRebuildRedisClient } from "./redis";
+import { createDepthRebuildRedisClient, createPriceRebuildRedisClient, createRebuildRedisClient, createVolumeRebuildRedisClient } from "./redis";
 
 
 export const rebuildRedisFromDB = async () => {
@@ -16,7 +16,9 @@ export const rebuildRedisFromDB = async () => {
             },
         });
 
+
         if (!openOrders || openOrders.length === 0) return;
+
 
         console.log(openOrders);
         
@@ -83,6 +85,67 @@ export const rebuildDepthRedisFromDB = async (markets: string[]) => {
     }catch(error){
         console.error(`Error in Rebuilding Depth Chart : ${error}`)
     } finally {
+        await client.quit()
+    }
+}
+
+export const rebuildVolumeRedisFromDB = async () => {
+    const client = createVolumeRebuildRedisClient()
+    try{
+        const trades = await prisma.trade.findMany({
+            select:{
+                marketId:true,
+                price:true,
+                quantity:true
+            }
+        })
+        const volumeMap = new Map<string,number>()
+
+        for(const trade of trades){
+            const value = trade.price*trade.quantity
+
+            volumeMap.set(
+                trade.marketId,
+                (volumeMap.get(trade.marketId) || 0) + value
+            )
+        }
+        const volumePipeline = client.pipeline()
+
+        for (const [marketId,volume] of volumeMap){
+            volumePipeline.set(`MARKET_VOLUME:${marketId}`,volume||0)
+        }
+
+        await volumePipeline.exec()
+    }catch(error){
+        console.error(`Error in rebuilding Volume Chart : ${error}`)
+    }finally{
+        await client.quit()
+    }
+}
+
+export const rebuildPriceRedisFromDB = async () => {
+    const client = createPriceRebuildRedisClient()
+    try{
+        const trades = await prisma.trade.findMany({
+            orderBy:{
+                createdAt:"desc"
+            }
+        })
+
+        const seen = new Set()
+        const pricePipeline = client.pipeline()
+
+        for(const trade of trades){
+            if(!seen.has(trade.marketId)){
+                pricePipeline.set(`MARKET_PRICE:${trade.marketId}`,trade.price)
+                seen.add(trade.marketId)
+            }
+        }
+
+        await pricePipeline.exec()
+    }catch(error){
+        console.error(`Error in rebuilding Price Chart : ${error}`)
+    }finally{
         await client.quit()
     }
 }

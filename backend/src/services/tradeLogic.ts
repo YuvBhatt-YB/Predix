@@ -36,10 +36,18 @@ export const validateTradeCriteria = async(userId:string,marketId:string,quantit
 
 export const placeOrder = async (userId: string,marketId: string,quantity: number,price: number,type: OrderSide,outcome: OrderOutcome,orderType:OrderExecutionType,walletId: string) => {
     try {
-        const amount: number = quantity*price
-        const order = await prisma.$transaction(async (tx) => {
+        const amount: number = Math.round(quantity*price * 100)/100
+        const result = await prisma.$transaction(async (tx) => {
+            let updatedWallet = null
             if (type == "BUY") {
-                await tx.wallet.update({
+                const wallet = await tx.wallet.findUnique({
+                    where: { userID: userId },
+                });
+
+                if (!wallet) {
+                    throw new Error("Wallet not found");
+                }
+                updatedWallet = await tx.wallet.update({
                     where: { userID: userId },
                     data: {
                         balance: { decrement: amount },
@@ -50,8 +58,8 @@ export const placeOrder = async (userId: string,marketId: string,quantity: numbe
                     data: {
                         type: "TRADE_LOCK",
                         amount: amount,
-                        description: `LOCKED IN $${amount} FOR TRADE`,
-                        walletId: walletId,
+                        description: `LOCKED IN $${amount.toFixed(2)} FOR TRADE`,
+                        walletId: wallet.id,
                     },
                 });
             } else if (type === "SELL") {
@@ -83,11 +91,21 @@ export const placeOrder = async (userId: string,marketId: string,quantity: numbe
                 status:"OPEN"
             }})
             
-            return order
+            return {updatedWallet,order}
         })
-        
-        await redis.lpush(`globalOrdersQueue`,JSON.stringify(order))
-        return {ok:true,order:order}
+        if(!result) return{ok:false}
+        if (type === "BUY") {
+            redis.publish(
+                "WALLET_UPDATE",
+                JSON.stringify({
+                    userId: result.order.userId,
+                    balance: result.updatedWallet?.balance ?? 0,
+                    locked: result.updatedWallet?.locked ?? 0,
+                }),
+            );
+        }
+        await redis.lpush(`globalOrdersQueue`,JSON.stringify(result.order))
+        return {ok:true,order:result.order}
     } catch (error) {
         if(error instanceof Error){
             return {ok:false,message:error.message || "UNKNOWN ERROR WHILE PLACING ORDER"}

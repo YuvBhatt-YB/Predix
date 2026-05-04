@@ -2,7 +2,8 @@ import { Request, Response } from "express";
 import { marketSchema } from "../Schemas/markets";
 import { Prisma } from "@prisma/client";
 import prisma from "../prisma";
-import { redis } from "../redisClient";
+import { createMarketSummaryRedisClient, redis } from "../redisClient";
+import { Summary } from "../types/Trade";
 
 
 
@@ -94,4 +95,45 @@ export const handleGetMarket = async (req:Request,res:Response) => {
     console.log(marketId)
     return res.status(200).json({marketDetails:marketDetails})
     
+}
+
+
+export const handleGetMarketSummary = async(req:Request,res:Response) => {
+    try {
+        const marketIds: string[] = req.body.marketIds
+        console.log(marketIds)
+
+        if(!marketIds) return res.status(500).json({message:"No MarketIds given to get market summary"})
+        
+        const client = createMarketSummaryRedisClient();
+
+        
+
+        const volumeKeys = marketIds.map(id => `MARKET_VOLUME:${id}`)
+        const priceKeys = marketIds.map(id => `MARKET_PRICE:${id}`)
+
+
+
+        const [volumes,prices] = await Promise.all([
+            client.mget(volumeKeys),
+            client.mget(priceKeys)
+        ])
+
+        
+
+        const summary: Summary[] = marketIds.map((id,i) => ({
+            id:id,
+            volume:Number(volumes[i] || 0),
+            price:Number(prices[i] || 0.5)
+        }))
+
+        
+        
+        return res.status(200).json({ summary: summary});
+    } catch (error) {
+        console.error(error);
+        return res
+            .status(500)
+            .json({ message: "Failed to fetch Market Summary" });
+    }
 }

@@ -4,12 +4,15 @@ import { deriveVisualLevels } from "@/utils/tradeHelperFunctions";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { io } from "socket.io-client";
 import api from "../api/trade"
+import { marketsSocketRoute } from "@/socket/markets";
 
 
 export default function useTrades(marketId){
     const [tradeExecuted,setTradeExecuted] = useState([])
     const [chartData,setChartData] = useState([])
     const [lastProbability,setLastProbability] = useState(0)
+    const [volume,setVolume] = useState(0)
+    const [marketUpdates,setMarketUpdates] = useState([])
     const [orderBook,setOrderBook] = useState({
         "YES":{"BUY":{},"SELL":{}},
         "NO":{"BUY":{},"SELL":{}}
@@ -49,8 +52,6 @@ export default function useTrades(marketId){
         socket.on("tradeExecuted",(trades) => {
             console.log(trades)
             tradeExecutedBuffer.current.push(...trades)
-            const lastTrade = trades[trades.length -1]
-            setLastProbability(lastTrade.price)
         })
         socket.on("depthAdded",(depthAddedData) =>{
             console.log("depthAddedData:", depthAddedData)
@@ -66,6 +67,18 @@ export default function useTrades(marketId){
         return ()=> {
             socket.disconnect()
         }
+    },[marketId])
+    useEffect(() => {
+        const socket = io(marketsSocketRoute)
+        socket.emit("joinMarket",marketId)
+        socket.on("marketUpdated",(marketUpdatedData) => {
+            const update = Array.isArray(marketUpdatedData) ? marketUpdatedData.flat()[0] : marketUpdatedData
+            if(!update) return
+            console.log("marketUpdatedData",marketUpdatedData)
+            setMarketUpdates(prevState => [...prevState,update])
+            setLastProbability(update.price)
+            setVolume(update.volume)
+        })
     },[marketId])
     useEffect(()=>{
         const fetchChartData = async() => {
@@ -191,6 +204,8 @@ export default function useTrades(marketId){
         noSpread,
         lastProbability,
         chartData,
-        marketPageError
+        marketPageError,
+        marketUpdates,
+        volume
     }
 }

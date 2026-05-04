@@ -14,7 +14,7 @@ const MarketPage = () => {
   const {marketId} = useParams()
   const {profileImg} = useSelector((state)=>state.user.userData)
   const [marketData,setMarketData] = useState({})
-  const {tradeExecuted,depthAdded,depthUpdated,orderBook,yesAsks,yesBids,noAsks,noBids,yesSpread,noSpread,lastProbability,chartData,marketPageError} = useTrades(marketId)
+  const {tradeExecuted,depthAdded,depthUpdated,orderBook,yesAsks,yesBids,noAsks,noBids,yesSpread,noSpread,lastProbability,chartData,marketPageError,marketUpdates,volume} = useTrades(marketId)
   useEffect(()=>{
     const fetchMarketData = async () => {
       const query = `/${marketId}`
@@ -33,9 +33,11 @@ const MarketPage = () => {
       <p>{JSON.stringify(depthUpdated)}</p>
       <p>{JSON.stringify(orderBook)}</p>
       <p>{JSON.stringify(chartData)}</p>
+      <p>----------------------------------------------</p>
+      <p>{JSON.stringify(marketUpdates)}</p>
       <div className="  lg:flex lg:justify-between lg:items-start gap-3 py-6 ">
         <div className="flex-1">
-          {marketData ? (<DisplayChart marketData={marketData} lastProbability={lastProbability} chartData={chartData} marketPageError={marketPageError} />): (<Loading />)}
+          {marketData ? (<DisplayChart marketData={marketData} lastProbability={lastProbability} chartData={chartData} marketPageError={marketPageError} volume={volume} />): (<Loading />)}
           
           <div className=' lg:hidden'>
             {marketData ? (<Trade marketData={marketData} />): (<Loading />)}

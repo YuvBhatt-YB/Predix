@@ -1,6 +1,6 @@
 import { Server } from "socket.io";
 import { createMarketDataStreamRedisClient } from "../redisClient";
-import { depthAddedEventType, depthUpdatedEventType, marketBroadcastEventType, TradeExecutedEventType } from "../types/Trade";
+import { depthAddedEventType, depthUpdatedEventType, marketBroadcastEventType, marketUpdateEventType, TradeExecutedEventType } from "../types/Trade";
 
 export async function marketDataStreamReader(io: Server) {
     const client = createMarketDataStreamRedisClient();
@@ -8,6 +8,7 @@ export async function marketDataStreamReader(io: Server) {
     const tradeBuffer = new Map<string, TradeExecutedEventType[]>()
     const depthAddedBuffer = new Map<string,depthAddedEventType[]>()
     const depthUpdatedBuffer = new Map<string,depthUpdatedEventType[]>()
+    const marketUpdateBuffer = new Map<string,marketUpdateEventType[]>()
     let lastID = "$";
     let running = true;
     setInterval(() => {
@@ -30,6 +31,14 @@ export async function marketDataStreamReader(io: Server) {
                 console.log("Emitting depthUpdated to", marketId, depthUpdated.length)
                 io.of(`/trades`).to(marketId).emit("depthUpdated", depthUpdated);
                 depthUpdatedBuffer.set(marketId, []);
+            }
+        }
+        for (const [marketId,marketUpdated] of marketUpdateBuffer.entries()){
+            if(marketUpdated.length > 0){
+                console.log("Emitting marketUpdated to",marketId,marketUpdated.length)
+                io.of("/markets").to(marketId).emit("marketUpdated",marketUpdated)
+                io.of("/markets").emit("marketUpdatedGlobal",marketUpdated)
+                marketUpdateBuffer.set(marketId,[])
             }
         }
     }, 50);
@@ -81,6 +90,14 @@ export async function marketDataStreamReader(io: Server) {
                         }
                         depthUpdatedBuffer.get(depthUpdated.marketId)!.push(depthUpdated)
                         console.log(depthUpdated)
+                        break;
+                    case "marketUpdated":
+                        const marketUpdated: marketUpdateEventType = JSON.parse(eventData)
+                        if(!marketUpdateBuffer.has(marketUpdated.marketId)){
+                            marketUpdateBuffer.set(marketUpdated.marketId,[])
+                        }
+                        marketUpdateBuffer.get(marketUpdated.marketId)!.push(marketUpdated)
+                        console.log(marketUpdated)
                         break;
                     default:
                         console.warn(`Unknown event type: ${eventType}`);

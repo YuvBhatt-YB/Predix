@@ -14,6 +14,12 @@ export function createRebuildRedisClient(){
 export function createDepthRebuildRedisClient(){
     return new Redis(process.env.REDIS_CLIENT || "redis://localhost:6379")
 }
+export function createVolumeRebuildRedisClient(){
+    return new Redis(process.env.REDIS_CLIENT || "redis://localhost:6379")
+}
+export function createPriceRebuildRedisClient(){
+    return new Redis(process.env.REDIS_CLIENT || "redis://localhost:6379")
+}
 
 export function createEngineEventListenerRedisClient(){
     return new Redis(process.env.REDIS_CLIENT || "redis://localhost:6379",{

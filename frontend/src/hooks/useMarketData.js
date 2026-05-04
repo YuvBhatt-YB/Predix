@@ -1,8 +1,10 @@
-import { appendMarkets, resetMarkets, setDebouncedLoading, setLoading, setMarkets, setNextCursor } from "@/state/markets/markets"
+import { appendMarkets, resetMarkets, setDebouncedLoading, setLoading,updateMarketRealTime, setMarkets, setNextCursor } from "@/state/markets/markets"
 import { useDispatch, useSelector } from "react-redux"
 import api from "../api/markets"
 import { useEffect, useRef } from "react"
 import { useLocation } from "react-router-dom"
+import { io } from "socket.io-client"
+import { marketsSocketRoute } from "@/socket/markets"
 export default function useMarketData(){
     const {loading,category,searchQuery,nextCursor,markets} = useSelector((state)=>state.markets)
     const dispatch = useDispatch()
@@ -23,11 +25,30 @@ export default function useMarketData(){
 
             console.log(`/${query.toString()}`);
             const response = await api.get(`/?${query.toString()}`)
+            const marketData = response.data.markets
+            const ids = marketData.map(m => m.id)
+            console.log(ids)
+            const summaryRes = await api.post(`/summary`,{marketIds:ids})
+            const summaryData = summaryRes.data.summary
+            console.log(marketData)
+            const summaryMap = {}
+            summaryData.forEach(summary => {
+                summaryMap[summary.id] = summary
+            })
+            const mergedMarkets = marketData.map(m => {
+                const summary = summaryMap[m.id] || {}
+                return {
+                    ...m,
+                    price:summary.price ?? 0.5,
+                    volume:summary.volume ?? 0
+                }
+            })
+            console.log(mergedMarkets)
             if(reset){
                 dispatch(resetMarkets())
-                dispatch(setMarkets(response.data.markets))
+                dispatch(setMarkets(mergedMarkets))
             }else{
-                dispatch(appendMarkets(response.data.markets))
+                dispatch(appendMarkets(mergedMarkets))
             }
             
             dispatch(setNextCursor(response.data.nextCursor))
@@ -69,6 +90,16 @@ export default function useMarketData(){
         return ()=> observer.disconnect()
     },
     [loading,nextCursor,category,searchQuery])
+    useEffect(() => {
+        const socket = io(marketsSocketRoute)
+
+        socket.on("marketUpdatedGlobal",(data) => {
+            const update = Array.isArray(data) ? data.flat()[0] : data
+            dispatch(updateMarketRealTime(update))
+        })
+
+        return () => socket.disconnect()
+    },[])
     return {
         fetchMarkets,
         loaderRef

@@ -4,7 +4,7 @@ import os from "os";
 
 import { runWorker } from "./worker";
 import { runRouter, updateWorkerAssignedMarkets } from "./globalRouter";
-import { rebuildRedisFromDB } from "./rebuild";
+import { rebuildPriceRedisFromDB, rebuildRedisFromDB, rebuildVolumeRedisFromDB } from "./rebuild";
 import { startEngineEventListener } from "./engineEventListener";
 import { ensureBotSetup, runLiquidityProviderWorker } from "./liquidityProviderWorker";
 
@@ -32,6 +32,8 @@ if(cluster.isPrimary){
     (async()=>{
         try {
             await rebuildRedisFromDB()
+            await rebuildVolumeRedisFromDB()
+            await rebuildPriceRedisFromDB()
             await ensureBotSetup()
             const markets = await prisma.market.findMany({select:{id:true}})
             if(markets.length === 0){

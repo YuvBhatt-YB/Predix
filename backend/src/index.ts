@@ -15,6 +15,8 @@ import { Server } from "socket.io"
 import { registerCommentHandlers } from "./sockets/comments.socket"
 import { registerTradeHandlers } from "./sockets/trade.socket"
 import { marketDataStreamReader } from "./StreamReader/marketDataStreamReader"
+import { registerMarketsHandler } from "./sockets/markets.socket"
+import { startWalletSubscriber } from "./redisSubscribers/walletSubscriber"
 
 dotenv.config()
 const app = express()
@@ -52,5 +54,7 @@ app.use("/trade",tradeRoute)
 
 registerCommentHandlers(io)
 registerTradeHandlers(io)
+registerMarketsHandler(io)
 marketDataStreamReader(io)
+startWalletSubscriber(io)
 server.listen(PORT,(): void=>{console.log(`Server is Running at PORT ${PORT}`)})

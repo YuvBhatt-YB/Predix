@@ -163,24 +163,40 @@ const rebalanceMarket = async(marketId: string,BOT_ID:string,commandClient:Redis
     const noAdjustedAnchor = clampAnchor(inventory > 0 ? noAnchor + shift : noAnchor - shift)
 
     const prevState = await getLPstate(marketId,commandClient)
+    
+    const isYesBroken = !bestYesAsk || !bestYesBid
+    const isNoBroken = !bestNoAsk || !bestNoBid
+    const isBookBroken = isYesBroken || isNoBroken
+    
+    if (isBookBroken) {
+        console.log("Emergency Rebalance: Empty book detected");
+    } else {
+        if (prevState?.lastUpdate) {
+            const timeDiff = Date.now() - prevState.lastUpdate;
+            if (timeDiff < LP_CONFIG.minTimeGap) {
+                console.log("Skipping Rebalance (CoolDown)");
+                return;
+            }
+        }
 
-    if(prevState?.lastUpdate){
-        const timeDiff = Date.now() - prevState.lastUpdate
-        if(timeDiff < LP_CONFIG.minTimeGap){
-            console.log("Skipping Rebalance (CoolDown)")
-            return
+        if (prevState) {
+            const anchorChange = Math.abs(
+                prevState.anchor - Number(yesAdjustedAnchor.toFixed(2)),
+            );
+            const skewChange = Math.abs(
+                prevState.skew - Number(skew.toFixed(4)),
+            );
+
+            if (
+                anchorChange < LP_CONFIG.minAnchorChange &&
+                skewChange < LP_CONFIG.minSkewChange
+            ) {
+                console.log("Skipping rebalance ( No Significant Change ) ");
+                return;
+            }
         }
     }
-
-    if(prevState){
-        const anchorChange = Math.abs(prevState.anchor - Number(yesAdjustedAnchor.toFixed(2)))
-        const skewChange = Math.abs(prevState.skew - Number(skew.toFixed(4)))
-
-        if(anchorChange < LP_CONFIG.minAnchorChange && skewChange < LP_CONFIG.minSkewChange){
-            console.log("Skipping rebalance ( No Significant Change ) ")
-            return
-        }
-    }
+    
     
     //quantity skew
     const buySize = Math.min(LP_CONFIG.maxOrderSize,Math.round(Math.max(2000,LP_CONFIG.baseOrderSize * (1-skew))))
@@ -191,11 +207,37 @@ const rebalanceMarket = async(marketId: string,BOT_ID:string,commandClient:Redis
     console.log(`Yes Adjusted Anchor: ${yesAdjustedAnchor}, No Adjusted Anchor: ${noAdjustedAnchor}`)
 
     //generate Ladders
-    const yesLadder:Ladder = generateLadder(LP_CONFIG.tick,LP_CONFIG.levels,yesAdjustedAnchor)
-    const noLadder:Ladder = generateLadder(LP_CONFIG.tick,LP_CONFIG.levels,noAdjustedAnchor)
+    let yesLadder:Ladder = generateLadder(LP_CONFIG.tick,LP_CONFIG.levels,yesAdjustedAnchor)
+    let noLadder:Ladder = generateLadder(LP_CONFIG.tick,LP_CONFIG.levels,noAdjustedAnchor)
+    if (yesLadder.BUY.length === 0 || yesLadder.SELL.length === 0) {
+        console.log("Fixing empty YES ladder");
+
+        // force rebuild around 0.5
+        const fallbackAnchor = 0.5;
+
+        yesLadder = generateLadder(
+            LP_CONFIG.tick,
+            LP_CONFIG.levels,
+            fallbackAnchor,
+        );
+    }
+    if (noLadder.BUY.length === 0 || noLadder.SELL.length === 0) {
+        console.log("Fixing empty NO ladder");
+
+        // force rebuild around 0.5
+        const fallbackAnchor = 0.5;
+
+        noLadder = generateLadder(
+            LP_CONFIG.tick,
+            LP_CONFIG.levels,
+            fallbackAnchor,
+        );
+    }
     
     //generate initial desired orders
     const desiredOrders = generateDesiredOrders(yesLadder,noLadder,BOT_ID,marketId,buySize,sellSize)
+
+    
 
     //generate final desired orders
     const finalDesiredOrders: FinalDesiredOrders = await compareAndCreateFinalDesiredOrders(BOT_ID,marketId,desiredOrders)

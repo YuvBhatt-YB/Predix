@@ -18,7 +18,8 @@ export type Order = {
 export enum marketBroadcastEventType{
     TRADE_EXECUTED = "TRADE_EXECUTED",
     DEPTH_UPDATED = "DEPTH_UPDATED",
-    DEPTH_ADDED = "DEPTH_ADDED"
+    DEPTH_ADDED = "DEPTH_ADDED",
+    MARKET_UPDATED = "MARKET_UPDATED"
 }
 
 export type TradeExecutedEventType = {
@@ -46,7 +47,12 @@ export type depthAddedEventType = {
     quantity: number;
     price: number
 }
-
+export type marketUpdateEventType = {
+    broadcastEventType: marketBroadcastEventType.MARKET_UPDATED;
+    marketId:string,
+    price:number,
+    volume:number
+}
 export type MarketStreamEvent = TradeExecutedEventType | depthUpdatedEventType | depthAddedEventType
 
 export type Depth = {
@@ -85,4 +91,16 @@ export type DesiredOrders = {
 export type FinalDesiredOrders = {
     CREATE:DesiredOrder[],
     CANCEL:Order[]
+}
+
+export type Summary = {
+    id: string,
+    volume: number,
+    price:number
+}
+
+export type WalletUpdateData = {
+    userId:string,
+    balance:number,
+    locked:number
 }
