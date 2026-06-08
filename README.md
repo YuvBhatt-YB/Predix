@@ -6,6 +6,34 @@ Predix is a full-stack real-time prediction market platform where users can trad
 
 The project combines a React/Vite frontend, an Express/TypeScript backend, Prisma/PostgreSQL persistence, Redis-backed orderbook infrastructure, Socket.IO streaming, and a worker-based matching engine to simulate exchange-like behavior in a demo environment.
 
+## Project Screenshots
+
+Below are selected screens from the Predix web application.
+
+### Landing Page
+
+![Predix Landing Page](project-images/landingPage.png)
+
+### Login
+
+![Predix Login](project-images/login.png)
+
+### Home / Market Discovery
+
+![Predix Home Page](project-images/homePage.png)
+
+### Market Trading Page
+
+![Predix Market Page](project-images/marketPage.png)
+
+### Portfolio / Profile
+
+![Predix Profile Page](project-images/profilePage.png)
+
+### Demo Wallet / Deposit
+
+![Predix Deposit Page](project-images/deposit.png)
+
 ## Key Highlights
 
 - Real-time YES/NO prediction markets
@@ -282,12 +310,3 @@ npm run preview
 Predix uses simulated/demo funds. Real-money deposits, withdrawals, and production financial operations are not enabled.
 
 This project is intended for learning, demos, portfolio presentation, and product prototype use.
-
-## Sensitive Info Check
-
-- No real `.env` values included
-- No secrets included
-- No tokens included
-- No database URLs included
-- No Redis URLs included
-- No OAuth secrets included
