@@ -5,17 +5,37 @@ import prisma from "../prisma";
 import { OrderOutcome } from "@prisma/client";
 import { BADFLAGS } from "dns";
 
+const EPSILON = 0.000001
+export const roundMoney = (value: number): number => {
+  return Math.round((value + Number.EPSILON) * 100) / 100;
+};
+const normalizeQty = (value:number) => {
+    return Math.abs(value) < EPSILON ? 0 : Number(value.toFixed(2));
+}
+
+const canMatchAtPrice = (incomingOrder: Order, restingOrder: Order) => {
+  if (incomingOrder.type === "BUY") {
+    return restingOrder.price <= incomingOrder.price + EPSILON;
+  }
+
+  if (incomingOrder.type === "SELL") {
+    return restingOrder.price >= incomingOrder.price - EPSILON;
+  }
+
+  return false;
+};
 export const matchOrder = async (
     order: Order,
     marketId: string,
     orderBook: Redis,
 ) => {
     try {
-        const { type, remainingQuantity, outcome, orderType,marketId } = order;
+        const { type, remainingQuantity, outcome, orderType } = order;
         const opp = type === "BUY" ? "SELL" : "BUY";
         const currKey = `ORDERBOOK:${marketId}:${outcome}:${type}`;
         const oppKey = `ORDERBOOK:${marketId}:${outcome}:${opp}`;
-        let remainingQty = remainingQuantity;
+        let remainingQty = normalizeQty(remainingQuantity);
+        let actualSpent = 0
         let trades = []
         let depthLevelUpdates = new Map<string,depthUpdatedEventType>()
         let depthLevelAdded: depthAddedEventType[] = []
@@ -24,7 +44,7 @@ export const matchOrder = async (
             await addOrderToRedisQueue(order, orderBook, currKey);
             await addAndUpdatePriceDepth(marketId,outcome,type,order,orderBook,depthLevelAdded);
         }
-        while (remainingQty > 0) {
+        while (remainingQty > EPSILON) {
             // console.log(remainingQty);
             
             // console.log(currKey);
@@ -40,31 +60,49 @@ export const matchOrder = async (
             const oppOrderRaw: Record<string, string> = await orderBook.hgetall(
                 `Order:${oppOrderId}`,
             );
-            const oppOrder = parseRedisOrder(oppOrderRaw);
-            // console.log(oppOrder);
-            const matchable =
-                type === "BUY"
-                    ? order.price >= oppOrder.price
-                    : order.price <= oppOrder.price;
-            console.log(matchable);
-            if (orderType === "LIMIT" && !matchable) {
-                break;
+            if(!oppOrderRaw || Object.keys(oppOrderRaw).length === 0){
+                await orderBook.zrem(oppKey,oppOrderId)
+                continue
             }
+
+            let oppOrder: Order
+            try{
+                oppOrder = parseRedisOrder(oppOrderRaw);
+            }catch(error){
+                await orderBook.zrem(oppKey,oppOrderId)
+                continue
+            }
+
+            if(oppOrder.remainingQuantity <= EPSILON || !["OPEN","PARTIAL"].includes(oppOrder.status)){
+                await orderBook.zrem(oppKey,oppOrderId)
+                continue
+            }
+            // console.log(oppOrder);
+           if(!canMatchAtPrice(order,oppOrder)){
+            break
+           }
             const fillQuantity = Math.min(
                 remainingQty,
                 oppOrder.remainingQuantity,
             );
+            if(fillQuantity <= EPSILON){
+                break
+            }
+            const remainingBeforeFill = remainingQty
+            const remainingAfterFill = normalizeQty(remainingQty - fillQuantity)
+            const fillCost = roundMoney(oppOrder.price * fillQuantity)
             // console.log(fillQuantity);
             await executeTrade(
                 order,
                 oppOrder,
                 fillQuantity,
-                remainingQty,
+                remainingBeforeFill,
                 type,
                 outcome as OrderOutcome,
                 orderType,
                 orderBook
             );
+            actualSpent = roundMoney(actualSpent + fillCost)
 
             const tradeValue = oppOrder.price * fillQuantity
 
@@ -79,12 +117,13 @@ export const matchOrder = async (
                 oppKey,
                 orderType,
                 fillQuantity,
-                remainingQty,
+                remainingBeforeFill,
                 orderBook,
             );
             const tradeEvent: TradeExecutedEventType = {
                 broadcastEventType: marketBroadcastEventType.TRADE_EXECUTED,
                 marketId:order.marketId,
+                outcome:outcome as OrderOutcome,
                 price:oppOrder.price,
                 quantity:fillQuantity,
                 side:order.type,
@@ -92,15 +131,20 @@ export const matchOrder = async (
             }
             trades.push(tradeEvent)
             await priceDepthUpdatePerOrder(orderType === "LIMIT" ? order:null,oppOrder,marketId,fillQuantity,depthLevelUpdates,orderBook)
-            remainingQty -= fillQuantity;
+            remainingQty = remainingAfterFill;
             console.log(remainingQty);
         }
         // console.log(`Depth level added events for order ${order.id}:`, depthLevelAdded);
         // console.log(`Trades executed for order ${order.id}:`, trades);
         // console.log(`Depth updates for order ${order.id}:`, depthLevelUpdates);
 
-        if(orderType === "MARKET" && remainingQty === remainingQuantity){
-            await handleMarketOrderTermination(order,remainingQty)
+        if(orderType === "MARKET"){
+            remainingQty = normalizeQty(remainingQty)
+            if(remainingQty > EPSILON){
+                await handleMarketOrderTermination(order,remainingQty,orderBook,actualSpent)
+            }else if(type === "BUY" && typeof order.amount === "number"){
+                await releaseUnusedMarketBuyBudget(order,actualSpent,orderBook)
+            }
         }
         const streamPipeline = orderBook.pipeline()
         let shouldTriggerLP = false
@@ -114,15 +158,15 @@ export const matchOrder = async (
             shouldTriggerLP = true
             for(const trade of trades){
                 streamPipeline.xadd(`MarketDataStream`,"*","tradeExecuted",JSON.stringify(trade))
+                streamPipeline.set(`MARKET_PRICE:${marketId}:${trade.outcome}`,trade.price )
             }
-            const lastTrade = trades[trades.length-1]
-            
-            await orderBook.set(`MARKET_PRICE:${marketId}`,lastTrade?.price || 0.5)
-            
+            const lastTrade = trades[trades.length-1]!
+
             const marketUpdateEvent:marketUpdateEventType = {
                 broadcastEventType:marketBroadcastEventType.MARKET_UPDATED,
                 marketId:marketId,
-                price:lastTrade?.price || 0.5,
+                outcome:lastTrade.outcome,
+                price:lastTrade.price ?? 0.5,
                 volume:currentVolume
             }
 
@@ -142,29 +186,122 @@ export const matchOrder = async (
         console.log(error);
     }
 };
-const handleMarketOrderTermination = async(order: Order,remainingQty:number) => {
-    await prisma.$transaction(async(tx)=>{
-        await tx.order.update({
-            where:{id:order.id},
+const releaseUnusedMarketBuyBudget = async(order:Order,actualSpent:number,orderBook:Redis) => {
+    if(typeof order.amount !== "number") return
+
+    const refundAmount = roundMoney(Math.max(order.amount - actualSpent,0))
+
+    if(refundAmount <= EPSILON) return
+
+    const updatedWallet = await prisma.$transaction(async(tx) => {
+        const wallet = await tx.wallet.update({
+            where:{userID:order.userId},
             data:{
-                status:"FILLED",
-                remainingQuantity:0
+                locked:{decrement:refundAmount},
+                balance:{increment:refundAmount}
             }
         })
 
-        await tx.wallet.update({
-            where:{userID:order.userId},
+        await tx.transaction.create({
             data:{
-                locked:{decrement:order.price * remainingQty},
-                balance:{increment:order.price * remainingQty}
+                type:"TRADE_RELEASE",
+                amount:refundAmount,
+                description:`REFUNDED $${refundAmount} ( UNUSED MARKET BUY BUDGET )`,
+                walletId:wallet.id
             }
         })
+
+        return wallet
     })
+
+    await orderBook.publish("WALLET_UPDATE",JSON.stringify({
+        userId:order.userId,
+        balance:roundMoney(updatedWallet.balance),
+        locked:roundMoney(updatedWallet.locked)
+    }))
+}
+
+const handleMarketOrderTermination = async(order: Order,remainingQty:number,orderBook:Redis,actualSpent:number) => {
+    const refundQty = normalizeQty(remainingQty)
+
+    if(refundQty <= EPSILON) return
+
+    const updatedWallet = await prisma.$transaction(async(tx)=>{
+        let wallet:{id:string;balance:number;locked:number} | null = null
+
+        await tx.order.update({
+            where:{id:order.id},
+            data:{
+                status:"PARTIAL",
+                remainingQuantity:0
+            }
+        })
+        if(order.type === "BUY"){
+            const refundAmount = typeof order.amount === "number"
+                ? roundMoney(Math.max(order.amount - actualSpent,0))
+                : roundMoney(order.price * refundQty)
+
+            if(refundAmount > EPSILON){
+                wallet = await tx.wallet.update({
+                    where:{userID:order.userId},
+                    data:{
+                        locked:{decrement:refundAmount},
+                        balance:{increment:refundAmount}
+                    }
+                })
+
+                await tx.transaction.create({
+                    data:{
+                        type:"TRADE_RELEASE",
+                        amount:refundAmount,
+                        description: typeof order.amount === "number"
+                            ? `REFUNDED $${refundAmount} ( UNUSED MARKET BUY BUDGET )`
+                            : `REFUNDED $${refundAmount} ( UNFILLED MARKET ORDER )`,
+                        walletId:wallet.id
+                    }
+                })
+            }
+        }
+        if(order.type === "SELL"){
+            const refundShares = Math.min(refundQty,order.remainingQuantity)
+            const updatedHolding = await tx.holdings.update({
+                where:{
+                    userId_marketId_outcome:{
+                        userId:order.userId,
+                        marketId:order.marketId,
+                        outcome:order.outcome as OrderOutcome
+                    }
+                },
+                data:{
+                    lockedShares:{decrement:refundShares},
+                    shares:{increment:refundShares}
+                }
+            })
+
+            if(Math.abs(updatedHolding.lockedShares) < EPSILON){
+                await tx.holdings.update({
+                    where:{id:updatedHolding.id},
+                    data:{lockedShares:0}
+                })
+            }
+        }
+
+        return wallet
+
+    })
+
+    if(updatedWallet){
+        await orderBook.publish("WALLET_UPDATE",JSON.stringify({
+            userId:order.userId,
+            balance:roundMoney(updatedWallet.balance),
+            locked:roundMoney(updatedWallet.locked)
+        }))
+    }
 }
 const priceDepthUpdatePerOrder = async(order:Order|null,oppOrder:Order,marketId:string,fillQuantity:number,depthLevelUpdates:Map<string,depthUpdatedEventType>,orderBook:Redis) => {
     if(order){
-        const newPriceQty = await orderBook.hincrby(`Depth:${marketId}:${order.outcome}:${order.type}`,order.price.toString(),-fillQuantity)
-        if(newPriceQty > 0){
+        const newPriceQty = Number(await orderBook.hincrbyfloat(`Depth:${marketId}:${order.outcome}:${order.type}`,order.price.toString(),-fillQuantity))
+        if(newPriceQty > EPSILON){
             const priceKey = `${marketId}:${order.outcome}:${order.type}:${order.price}`
             const priceDepthEvent: depthUpdatedEventType = {
                 broadcastEventType: marketBroadcastEventType.DEPTH_UPDATED,
@@ -193,8 +330,8 @@ const priceDepthUpdatePerOrder = async(order:Order|null,oppOrder:Order,marketId:
             console.error("Price level quantity went negative for order ",order.id)
         }
     }
-    const newOppOrderPriceQty = await orderBook.hincrby(`Depth:${marketId}:${oppOrder.outcome}:${oppOrder.type}`,oppOrder.price.toString(),-fillQuantity)
-    if(newOppOrderPriceQty > 0){
+    const newOppOrderPriceQty = Number(await orderBook.hincrbyfloat(`Depth:${marketId}:${oppOrder.outcome}:${oppOrder.type}`,oppOrder.price.toString(),-fillQuantity))
+    if(newOppOrderPriceQty > EPSILON){
         const priceKey = `${marketId}:${oppOrder.outcome}:${oppOrder.type}:${oppOrder.price}`
         const priceDepthEvent: depthUpdatedEventType = {
             broadcastEventType: marketBroadcastEventType.DEPTH_UPDATED,
@@ -236,7 +373,7 @@ export const addAndUpdatePriceDepth = async(marketId:string,outcome:string,type:
         }
         depthLevelAdded.push(depthAddedEvent)
     }else{
-        const newQty = await orderBook.hincrby(`Depth:${marketId}:${outcome}:${type}`,order.price.toString(),order.remainingQuantity)
+        const newQty = Number(await orderBook.hincrbyfloat(`Depth:${marketId}:${outcome}:${type}`,order.price.toString(),order.remainingQuantity))
         const depthAddedEvent: depthAddedEventType = {
             broadcastEventType: marketBroadcastEventType.DEPTH_ADDED,
             marketId: marketId,
@@ -259,9 +396,11 @@ const executeTrade = async (
     orderBook:Redis
 ) => {
     const result = await prisma.$transaction(async (tx) => {
+        const buyerOrder = type === "BUY" ? order : oppOrder
+        const sellerOrder = type === "SELL" ? order : oppOrder
         const execPrice = oppOrder.price;
-        const buyerId = type === "BUY" ? order.userId : oppOrder.userId;
-        const sellerId = type === "SELL" ? order.userId : oppOrder.userId;
+        const buyerId = buyerOrder.userId
+        const sellerId = sellerOrder.userId
         const buyerWalletID = await tx.wallet.findUnique({
             where:{userID:buyerId},
             select:{
@@ -277,28 +416,28 @@ const executeTrade = async (
         if (!buyerWalletID || !sellerWalletID) {
             throw new Error("Wallet not found during trade execution");
         }
-        const oppOutcome = outcome === "YES" ? "NO" : "YES"
         await tx.trade.create({
             data: {
                 marketId: order.marketId,
-                buyOrderId: type === "BUY" ? order.id : oppOrder.id,
-                sellOrderId: type === "SELL" ? order.id : oppOrder.id,
-                buyerId: type === "BUY" ? order.userId : oppOrder.userId,
-                sellerId: type === "SELL" ? order.userId : oppOrder.userId,
+                buyOrderId: buyerOrder.id,
+                sellOrderId: sellerOrder.id,
+                buyerId: buyerId,
+                sellerId: sellerId,
                 outcome: outcome,
                 price: oppOrder.price,
                 quantity: fillQuantity,
             },
         });
-
+        const orderRemainingAfterFill = normalizeQty(remainingQuantity - fillQuantity);
+        const oppRemainingAfterFill = normalizeQty(oppOrder.remainingQuantity - fillQuantity);
         await tx.order.update({
             where: { id: order.id },
             data: {
                 status:
-                    orderType === "MARKET" || remainingQuantity - fillQuantity === 0
+                    orderRemainingAfterFill <= EPSILON
                         ? "FILLED"
                         : "PARTIAL",
-                remainingQuantity: { decrement: fillQuantity },
+                remainingQuantity: orderRemainingAfterFill,
             },
         });
 
@@ -306,26 +445,22 @@ const executeTrade = async (
             where: { id: oppOrder.id },
             data: {
                 status:
-                    oppOrder.remainingQuantity - fillQuantity === 0
+                    oppRemainingAfterFill <= EPSILON
                         ? "FILLED"
                         : "PARTIAL",
-                remainingQuantity: { decrement: fillQuantity },
+                remainingQuantity: oppRemainingAfterFill,
             },
         });
-        const lockedPrice = order.price
-        const lockAmount = lockedPrice * fillQuantity;
-        const actualCost = execPrice * fillQuantity;
-        const refund = lockAmount - actualCost;
+        const actualCost = roundMoney(execPrice * fillQuantity);
+        const isIncomingMarketBuy = orderType === "MARKET" && type === "BUY" && typeof order.amount === "number"
+        const lockedPrice = buyerOrder.price
+        const lockAmount = isIncomingMarketBuy ? actualCost : roundMoney(lockedPrice * fillQuantity);
+        const refund = roundMoney(Math.max(lockAmount - actualCost,0));
 
         //buyer
         const existingHoldings = await tx.holdings.findUnique({
             where: {
-                userId_marketId_outcome: { userId: buyerId, marketId: order.marketId, outcome: outcome },
-            },
-        });
-        const buyerOppExistingHoldings = await tx.holdings.findUnique({
-            where: {
-                userId_marketId_outcome: { userId: buyerId, marketId: order.marketId, outcome: oppOutcome },
+                userId_marketId_outcome: { userId: buyerId, marketId: order.marketId, outcome: buyerOrder.outcome as OrderOutcome },
             },
         });
 
@@ -348,25 +483,9 @@ const executeTrade = async (
                     marketId: order.marketId,
                     shares: fillQuantity,
                     avgPrice: execPrice,
-                    outcome:outcome
+                    outcome:buyerOrder.outcome as OrderOutcome
                 },
             });
-        }
-        if(buyerOppExistingHoldings){
-            await tx.holdings.update({
-                where: { id: buyerOppExistingHoldings.id },
-                data: { shares: { decrement: fillQuantity } },
-            }); 
-        }else{
-            await tx.holdings.create({
-                data: {
-                    userId: buyerId,
-                    marketId: order.marketId,
-                    shares: -fillQuantity,
-                    avgPrice: 1-execPrice,
-                    outcome:oppOutcome
-                }
-            })
         }
         await tx.wallet.update({
             where: { userID: buyerId },
@@ -408,33 +527,19 @@ const executeTrade = async (
                 walletId:sellerWalletID.id
             }
         })
-        await tx.holdings.update({
+        const sellerHolding = await tx.holdings.update({
             where: {
-                userId_marketId_outcome: { userId: sellerId, marketId: order.marketId,outcome: outcome },
+                userId_marketId_outcome: { userId: sellerId, marketId: order.marketId,outcome: sellerOrder.outcome as OrderOutcome },
             },
             data: {
-                lockedShares: { decrement: fillQuantity },
+                lockedShares: { decrement: fillQuantity }
             },
         });
-        const sellerOppExistingHoldings = await tx.holdings.findUnique({
-            where: {
-                userId_marketId_outcome: { userId: sellerId, marketId: order.marketId, outcome: oppOutcome },
-            },
-        });
-        if(sellerOppExistingHoldings){
+
+        if(Math.abs(sellerHolding.lockedShares) < EPSILON){
             await tx.holdings.update({
-                where: { id: sellerOppExistingHoldings.id },
-                data: { shares: { increment: fillQuantity } },
-            }); 
-        }else{
-            await tx.holdings.create({
-                data: {
-                    userId: sellerId,
-                    marketId: order.marketId,
-                    shares: fillQuantity,
-                    avgPrice: 1-execPrice,
-                    outcome:oppOutcome
-                }
+                where:{id:sellerHolding.id},
+                data:{lockedShares:0}
             })
         }
         const [buyerWallet,sellerWallet] = await Promise.all([
@@ -455,13 +560,13 @@ const executeTrade = async (
     if(result){
         orderBook.publish("WALLET_UPDATE",JSON.stringify({
             userId:result.buyerId,
-            balance:result.buyerWallet?.balance ?? 0,
-            locked: result.buyerWallet?.locked ?? 0
+            balance:roundMoney(result.buyerWallet?.balance ?? 0),
+            locked: roundMoney(result.buyerWallet?.locked ?? 0)
         }))
         orderBook.publish("WALLET_UPDATE",JSON.stringify({
             userId:result.sellerId,
-            balance:result.sellerWallet?.balance ?? 0,
-            locked: result.sellerWallet?.locked ?? 0
+            balance:roundMoney(result.sellerWallet?.balance ?? 0),
+            locked: roundMoney(result.sellerWallet?.locked ?? 0)
         }))
     }
 };
@@ -477,8 +582,8 @@ const redisOrderBookUpdate = async (
     orderBook: Redis,
 ) => {
     if (order) {
-        const orderRemaining = remainingQty - fillQuantity;
-        if (orderRemaining > 0) {
+        const orderRemaining = normalizeQty(remainingQty - fillQuantity);
+        if (orderRemaining > EPSILON) {
             await orderBook.hset(`Order:${order.id}`, "status", "PARTIAL");
             await orderBook.hset(
                 `Order:${order.id}`,
@@ -490,8 +595,8 @@ const redisOrderBookUpdate = async (
             await orderBook.zrem(currKey, order.id);
         }
     }
-    const oppRemaining = oppOrder.remainingQuantity - fillQuantity;
-    if (oppRemaining > 0) {
+    const oppRemaining = normalizeQty(oppOrder.remainingQuantity - fillQuantity);
+    if (oppRemaining > EPSILON) {
         await orderBook.hset(`Order:${oppOrder.id}`, "status", "PARTIAL");
         await orderBook.hset(
             `Order:${oppOrder.id}`,

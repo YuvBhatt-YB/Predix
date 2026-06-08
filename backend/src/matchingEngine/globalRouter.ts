@@ -1,4 +1,5 @@
-import { Order } from "../types/Trade"
+import { parse } from "dotenv";
+import { EngineEvent, Order } from "../types/Trade"
 import { createRedisClient } from "./redis"
 
 let assignedMarkets: Array<[number,string]> | null = null
@@ -23,14 +24,16 @@ export const runRouter = async() => {
             const res:[string,string] | null = await client.brpop(`globalOrdersQueue`,0)
             console.log(res)
             if(!res) continue
-            const parsed = JSON.parse(res[1])
-            const order:Order = parsed
-            console.log(`Order ${order.id} came in globalQueue. Process it`)
+            const parsed:EngineEvent = JSON.parse(res[1])
+            console.log(parsed)
+            const marketId = parsed.payload.marketId 
+            const orderId = parsed.type === "PLACE_ORDER" ? parsed.payload.id : parsed.payload.orderId
+            console.log(`${parsed.type} Order ${orderId} came in globalQueue. Process it`)
             for (const [worker,marketStrings] of assignedMarkets!){
                 const markets = JSON.parse(marketStrings)
-                if(markets.includes(order.marketId)){
+                if(markets.includes(marketId)){
                     console.log(`Order is for orderQueue:${String(worker)}`)
-                    await client.lpush(`orderQueue:${String(worker)}`,JSON.stringify(order))
+                    await client.lpush(`orderQueue:${String(worker)}`,JSON.stringify(parsed))
                     break
                 }
             }

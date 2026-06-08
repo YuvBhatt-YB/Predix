@@ -1,5 +1,8 @@
+import { OrderOutcome } from "@prisma/client";
+
+
 export type TradeValidationResult =
-    | { success: true; walletId: string }
+    | { success: true; walletId?: string }
     | { success: false; message: string };
 
 export type Order = {
@@ -12,6 +15,7 @@ export type Order = {
     quantity: number;
     remainingQuantity: number;
     price: number;
+    amount?: number;
     status: string;
     createdAt: string;
 };
@@ -22,9 +26,12 @@ export enum marketBroadcastEventType{
     MARKET_UPDATED = "MARKET_UPDATED"
 }
 
+
+
 export type TradeExecutedEventType = {
     broadcastEventType: marketBroadcastEventType.TRADE_EXECUTED;
     marketId: string;
+    outcome:OrderOutcome;
     side:string;
     quantity: number;
     price: number;
@@ -50,6 +57,7 @@ export type depthAddedEventType = {
 export type marketUpdateEventType = {
     broadcastEventType: marketBroadcastEventType.MARKET_UPDATED;
     marketId:string,
+    outcome:string,
     price:number,
     volume:number
 }
@@ -104,3 +112,5 @@ export type WalletUpdateData = {
     balance:number,
     locked:number
 }
+
+export type EngineEvent = {type:"PLACE_ORDER",payload:Order} | {type:"CANCEL_ORDER",payload:{orderId:string;userId:string;marketId:string}}

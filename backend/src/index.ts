@@ -6,6 +6,7 @@ import marketsRoute from "./routes/markets"
 import fundsRoute from "./routes/funds"
 import commentsRoute from "./routes/comment"
 import tradeRoute from "./routes/trade"
+import portfolioRoute from "./routes/portfolio"
 import cors from "cors"
 import http from "http"
 import session from "express-session"
@@ -17,6 +18,7 @@ import { registerTradeHandlers } from "./sockets/trade.socket"
 import { marketDataStreamReader } from "./StreamReader/marketDataStreamReader"
 import { registerMarketsHandler } from "./sockets/markets.socket"
 import { startWalletSubscriber } from "./redisSubscribers/walletSubscriber"
+import { registerWalletHandler } from "./sockets/wallet.socket"
 
 dotenv.config()
 const app = express()
@@ -51,10 +53,12 @@ app.use("/markets",marketsRoute)
 app.use("/funds",fundsRoute)
 app.use("/comment",commentsRoute)
 app.use("/trade",tradeRoute)
+app.use("/portfolio",portfolioRoute)
 
 registerCommentHandlers(io)
 registerTradeHandlers(io)
 registerMarketsHandler(io)
+registerWalletHandler(io)
 marketDataStreamReader(io)
 startWalletSubscriber(io)
 server.listen(PORT,(): void=>{console.log(`Server is Running at PORT ${PORT}`)})

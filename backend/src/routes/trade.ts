@@ -1,10 +1,12 @@
 import { Router } from "express";
-import { handleGetOrderBookData, handleGetTradeChartData, handlePostTrade } from "../controllers/trade";
+import { handleCancelTrade, handleGetOrderBookData, handleGetTradeChartData, handlePostTrade } from "../controllers/trade";
+import { requireAuth, requireOrderOwner, requireSameUser } from "../middlewares/auth.middleware";
 
 const router = Router()
 
 
-router.post("/",handlePostTrade)
+router.post("/",requireAuth,requireSameUser,handlePostTrade)
+router.post("/cancel/:orderId",requireAuth,requireOrderOwner,handleCancelTrade)
 router.get("/chartData/:marketId",handleGetTradeChartData)
 router.get("/orderBookData/:marketId",handleGetOrderBookData)
 

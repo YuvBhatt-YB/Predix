@@ -17,7 +17,7 @@ const About = () => {
         <div className=' bg-bgColor px-3 md:px-5 py-6 md:py-12 rounded-b-large'>
           <div className=' font-secondary border-1 border-borderPrimary bg-white p-3.5 rounded-medium flex flex-col gap-6'>
             <div className=' text-primary flex gap-2 items-center'>
-              <img src={btc} alt="" srcset="" className=' rounded-small w-[30px] h-[30px]' />
+              <img src={btc} alt="" srcSet="" className=' rounded-small w-[30px] h-[30px]' />
               <p className='text-sm md:text-[16px]'>Will Bitcoin Price go to $130,000  ?</p>
             </div>
             <div className=' flex flex-col gap-1 md:flex-row md:gap-0 justify-between items-end'>

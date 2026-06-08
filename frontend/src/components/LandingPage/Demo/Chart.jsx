@@ -45,69 +45,67 @@ const chartConfig = {
   },
 } 
 const Chart = () => {
-  return (
-    <Card className=" shadow-none border-none font-secondary">
-      <CardContent className="p-0">
-        <ChartContainer config={chartConfig}>
-          <ResponsiveContainer width="100%">
-            <LineChart
-              accessibilityLayer
-              data={chartData.priceHistory}
-              margin={{
-                top: 10,
-                left: -15,
-                right: 20,
-              }}
-            >
-              <CartesianGrid vertical={false} />
-              <XAxis
-                dataKey="time"
-                tickLine={false}
-                axisLine={false}
-                tickMargin={10}
-              />
-              <YAxis
-                dataKey="price"
-                tickLine={false}
-                axisLine={false}
-                tickMargin={10}
-                tickFormatter={(value) => `${value}%`}
-              />
-              <ChartTooltip
-                cursor={false}
-                content={
-                  <ChartTooltipContent
-                    indicator="line"
-                    nameKey="price"
-                    hideLabel
-                  />
-                }
-              />
-              <Line
-                dataKey="price"
-                type="natural"
-                stroke="#1452F0"
-                strokeWidth={2}
-                dot={({ payload, ...props }) => {
-                  return (
-                    <Dot
-                      key={payload.browser}
-                      r={3}
-                      cx={props.cx}
-                      cy={props.cy}
-                      fill="#1452F0"
-                      stroke={payload.fill}
-                    />
-                  );
-                }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </ChartContainer>
-      </CardContent>
-    </Card>
-  );
-}
+    return (
+        <Card className=" shadow-none border-none font-secondary">
+            <CardContent className="p-0">
+                <ChartContainer config={chartConfig} className="w-full h-[260px] sm:h-[320px] md:h-[360px] min-h-[260px]">
+                    <LineChart
+                        accessibilityLayer
+                        data={chartData.priceHistory}
+                        margin={{
+                            top: 10,
+                            left: -15,
+                            right: 20,
+                        }}
+                    >
+                        <CartesianGrid vertical={false} />
+                        <XAxis
+                            dataKey="time"
+                            tickLine={false}
+                            axisLine={false}
+                            tickMargin={10}
+                        />
+                        <YAxis
+                            dataKey="price"
+                            tickLine={false}
+                            axisLine={false}
+                            tickMargin={10}
+                            tickFormatter={(value) => `${value}%`}
+                        />
+                        <ChartTooltip
+                            cursor={false}
+                            content={
+                                <ChartTooltipContent
+                                    indicator="line"
+                                    nameKey="price"
+                                    hideLabel
+                                />
+                            }
+                        />
+                        <Line
+                            dataKey="price"
+                            type="natural"
+                            stroke="#1452F0"
+                            strokeWidth={2}
+                            dot={({ payload,index, ...props }) => {
+                                return (
+                                    <Dot
+                                        key={`price-dot-${index}`}
+                                        r={3}
+                                        cx={props.cx}
+                                        cy={props.cy}
+                                        fill="#1452F0"
+                                        stroke={payload.fill}
+                                    />
+                                );
+                            }}
+                        />
+                    </LineChart>
+                </ChartContainer>
+            </CardContent>
+        </Card>
+    );
+};
 
 
 export default Chart

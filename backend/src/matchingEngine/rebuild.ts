@@ -49,10 +49,10 @@ export const rebuildDepthRedisFromDB = async (markets: string[]) => {
                     const depthId = `Depth:${market}:${outcome}:${side}`
                     const priceLevels = new Map<string,number>()
                     console.log(id)
+                    await client.del(depthId)
                     const res: string[] = await client.zrange(id,0,-1)
                     if(!res || res.length === 0) continue
                     console.log(res)
-                    await client.del(depthId)
                     const orderPipeline = client.pipeline()
                     
                     for(const orderId of res){
@@ -61,10 +61,29 @@ export const rebuildDepthRedisFromDB = async (markets: string[]) => {
                     const orderResults = await orderPipeline.exec()
                     
                     if(!orderResults || orderResults.length === 0) continue
-                    for(const[error,orderRaw] of orderResults){
-                        if(error || !orderRaw) continue
-                        const order = parseRedisOrder(orderRaw as Record<string,string>)
-                        if(order.remainingQuantity <=0) continue
+                    for(let i = 0; i < orderResults.length; i++){
+                        const result = orderResults[i]
+                        const orderId = res[i]
+                        if(!result || !orderId) continue
+
+                        const [error,orderRaw] = result
+                        if(error || !orderRaw || Object.keys(orderRaw as Record<string,string>).length === 0){
+                            await client.zrem(id,orderId)
+                            continue
+                        }
+
+                        let order: Order
+                        try{
+                            order = parseRedisOrder(orderRaw as Record<string,string>)
+                        }catch(error){
+                            await client.zrem(id,orderId)
+                            continue
+                        }
+
+                        if(order.remainingQuantity <=0 || !["OPEN","PARTIAL"].includes(order.status)){
+                            await client.zrem(id,orderId)
+                            continue
+                        }
                         if(!priceLevels.has(String(order.price))){
                             priceLevels.set(String(order.price),order.remainingQuantity)
                         }else{
@@ -136,9 +155,11 @@ export const rebuildPriceRedisFromDB = async () => {
         const pricePipeline = client.pipeline()
 
         for(const trade of trades){
-            if(!seen.has(trade.marketId)){
-                pricePipeline.set(`MARKET_PRICE:${trade.marketId}`,trade.price)
-                seen.add(trade.marketId)
+            const key = `${trade.marketId}:${trade.outcome}`
+
+            if(!seen.has(key)){
+                pricePipeline.set(`MARKET_PRICE:${trade.marketId}:${trade.outcome}`,trade.price)
+                seen.add(key)
             }
         }
 

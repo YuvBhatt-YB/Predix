@@ -16,6 +16,7 @@ import { getUserData } from './state/user/user'
 
 import LoadingPage from './components/ui/LoadingPage'
 import Funds from './pages/Funds'
+import { Toaster } from 'sonner';
 
 const router = createBrowserRouter([
   {
@@ -62,7 +63,12 @@ function AppInitializer(){
     dispatch(getUserData())
   },[dispatch])
 
-  return <RouterProvider router={router} />
+  return (
+    <>
+      <RouterProvider router={router} />
+      <Toaster closeButton  duration={4000} />
+    </>
+  )
 }
 
 createRoot(document.getElementById('root')).render(

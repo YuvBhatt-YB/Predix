@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import { marketSchema } from "../Schemas/markets";
 import { Prisma } from "@prisma/client";
 import prisma from "../prisma";
-import { createMarketSummaryRedisClient, redis } from "../redisClient";
+import { createMarketPriceRedisClient, createMarketSummaryRedisClient, redis } from "../redisClient";
 import { Summary } from "../types/Trade";
 
 
@@ -82,35 +82,55 @@ export const handleGetMarkets = async (req: Request,res:Response) => {
     }
 }
 
-export const handleGetMarket = async (req:Request,res:Response) => {
-    const marketId: string | undefined = req.params.marketId
-    if(!marketId){
-        return res.status(400).json({message:"No Market ID found"})
-    }
-    const marketDetails = await prisma.market.findUnique({
-        where:{
-            id:marketId
+export const handleGetMarket = async (req: Request, res: Response) => {
+    const marketId: string | undefined = req.params.marketId;
+    let client
+    try {
+        if (!marketId) {
+            return res.status(400).json({ message: "No Market ID found" });
         }
-    })
-    console.log(marketId)
-    return res.status(200).json({marketDetails:marketDetails})
-    
-}
+        client = createMarketPriceRedisClient()
+        const marketDetails = await prisma.market.findUnique({
+            where: {
+                id: marketId,
+            },
+        });
+        const volume = await client.get(`MARKET_VOLUME:${marketId}`)
+        const [currentYesPrice,currentNoPrice] = await Promise.all([
+            client.get(`MARKET_PRICE:${marketId}:YES`),
+            client.get(`MARKET_PRICE:${marketId}:NO`)
+        ])
+        console.log(marketId);
+        console.log(volume)
+        
+        const newMarketDetails = {
+            ...marketDetails,
+            currentYes:currentYesPrice ? Number(currentYesPrice): 0.5,
+            currentNo:currentNoPrice ? Number(currentNoPrice) : 0.5,
+            volume:Number(volume) ?? 0
+        }
+        console.log(newMarketDetails)
+        return res.status(200).json({ marketDetails: newMarketDetails });
+    } catch (error) {
+    } finally {
+    }
+};
 
 
 export const handleGetMarketSummary = async(req:Request,res:Response) => {
+    let client
     try {
         const marketIds: string[] = req.body.marketIds
         console.log(marketIds)
 
-        if(!marketIds) return res.status(500).json({message:"No MarketIds given to get market summary"})
+        if(!marketIds) return res.status(400).json({message:"No MarketIds given to get market summary"})
         
-        const client = createMarketSummaryRedisClient();
+        client = createMarketSummaryRedisClient();
 
         
 
         const volumeKeys = marketIds.map(id => `MARKET_VOLUME:${id}`)
-        const priceKeys = marketIds.map(id => `MARKET_PRICE:${id}`)
+        const priceKeys = marketIds.map(id => `MARKET_PRICE:${id}:YES`)
 
 
 
@@ -135,5 +155,9 @@ export const handleGetMarketSummary = async(req:Request,res:Response) => {
         return res
             .status(500)
             .json({ message: "Failed to fetch Market Summary" });
+    }finally{
+        if(client){
+            await client.quit()
+        }
     }
 }

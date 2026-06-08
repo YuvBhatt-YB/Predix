@@ -3,29 +3,32 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { CheckCircle2Icon, InfoIcon } from "lucide-react"
 import Chart from './Chart'
 import { formatVolume } from '@/utils/amount'
+import { useSelector } from 'react-redux';
 
 
 
-const DisplayChart = ({marketData,lastProbability,chartData,marketPageError,volume}) => {
+const DisplayChart = ({marketData,lastProbability,chartData,prices,marketPageError,volume}) => {
   const [direction,setDirection] = useState("neutral")
+  const {selectedOption} = useSelector((state) => state.trade)
+  const selectedPrice = prices[selectedOption] ?? lastProbability ?? 0.5
   const prevProbability = useRef(null)
   useEffect(() => {
-    if(prevProbability === null){
-      prevProbability.current = lastProbability
+    if(prevProbability.current === null){
+      prevProbability.current = selectedPrice
       return
     }
-    if(lastProbability > prevProbability.current){
+    if(selectedPrice > prevProbability.current){
       setDirection("up")
-    }else if (lastProbability < prevProbability.current){
+    }else if (selectedPrice < prevProbability.current){
       setDirection("down")
     }
-    prevProbability.current = lastProbability
+    prevProbability.current = selectedPrice
     const timeout = setTimeout(()=>{
       setDirection("neutral")
     },500)
 
     return () => clearTimeout(timeout)
-  },[lastProbability])
+  },[selectedPrice])
   const color = direction === "up" ? "text-darkGreen" : direction === "down" ? "text-darkRed" : "text-primaryBlue"
   return (
       <div className="  w-full ">
@@ -34,7 +37,7 @@ const DisplayChart = ({marketData,lastProbability,chartData,marketPageError,volu
                   <img
                       src={marketData.image}
                       alt=""
-                      srcset=""
+                      srcSet=""
                       className="h-[50px] w-[50px] rounded-small"
                   />
                   <p className=" font-secondary font-semibold  md:text-2xl text-primary">
@@ -51,12 +54,10 @@ const DisplayChart = ({marketData,lastProbability,chartData,marketPageError,volu
               <p
                   className={`font-secondary font-semibold text-xl ${color} transition-colors duration-300 ease-in-out `}
               >
-                  {lastProbability !== 0
-                      ? (lastProbability * 100).toFixed(0)
-                      : (marketData.currentPriceYes * 100).toFixed(0)}
+                  {(selectedPrice * 100).toFixed(0)}
                   % Chance
               </p>
-              <div className=" w-full ">
+              <div className=" w-full min-w-0 ">
                   {marketPageError.type === "chartData" ? (
                       <div className=' font-secondary'>
                           {" "}

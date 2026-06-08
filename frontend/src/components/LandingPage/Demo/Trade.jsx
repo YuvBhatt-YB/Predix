@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label"
 import useAmount from '@/hooks/useAmount';
 import { Link } from 'react-router-dom';
 const Trade = () => {
+  const currentPrice = {YES:0.23,NO:0.78}
   const {
     amount,
     selectedOption,
@@ -23,8 +24,7 @@ const Trade = () => {
     handleSetAmount,
     handleIncrement,
     updatePayoutOptionChange,
-    currentPrice
-  } = useAmount({yes:0.23,no:0.78});
+  } = useAmount(currentPrice);
   return (
     <Card className="w-full md:max-w-sm  ">
       <CardHeader>
@@ -41,18 +41,18 @@ const Trade = () => {
           <Button
             size="lg"
             className={` ${
-              selectedOption === "yes"
+              selectedOption === "YES"
                 ? "bg-darkGreen hover:bg-darkGreen"
                 : "bg-light hover:bg-light text-primaryGray"
             } rounded-small flex-1  md:py-6 text-xl`}
             onClick={() => {
-              setSelectedOption("yes");
-              updatePayoutOptionChange("yes");
+              setSelectedOption("YES");
+              updatePayoutOptionChange("YES");
             }}
           >
             <span
               className={
-                selectedOption === "yes"
+                selectedOption === "YES"
                   ? " text-lightGreen"
                   : "text-primaryGray"
               }
@@ -64,18 +64,18 @@ const Trade = () => {
           <Button
             size="lg"
             className={` ${
-              selectedOption === "no"
+              selectedOption === "NO"
                 ? " bg-darkRed hover:bg-darkRed text-white"
                 : "bg-light text-primaryGray hover:bg-light"
             } rounded-small flex-1  md:py-6 text-xl`}
             onClick={() => {
-              setSelectedOption("no");
-              updatePayoutOptionChange("no");
+              setSelectedOption("NO");
+              updatePayoutOptionChange("NO");
             }}
           >
             <span
               className={
-                selectedOption === "no" ? " text-lightRed" : "text-primaryGray"
+                selectedOption === "NO" ? " text-lightRed" : "text-primaryGray"
               }
             >
               No
@@ -153,10 +153,10 @@ const Trade = () => {
               </p>
               <p className=" text-primaryGray text-sm">
                 Avg. Price
-                {selectedOption === "yes" ? (
-                  <span> {currentPrice.yes}</span>
+                {selectedOption === "YES" ? (
+                  <span> {currentPrice.YES}</span>
                 ) : (
-                  <span> {currentPrice.no}</span>
+                  <span> {currentPrice.NO}</span>
                 )}
               </p>
             </div>

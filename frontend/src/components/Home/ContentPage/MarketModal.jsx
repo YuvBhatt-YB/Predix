@@ -21,7 +21,7 @@ const MarketModal = ({marketDetails}) => {
             <p className=' text-textGray'><span className='text-primary font-semibold'>{currPrice}%</span> Chance</p>
         </div>
         <div className=' flex gap-2 items-center'>
-          <img src={marketDetails.image} alt="" srcset="" className='w-[30px] h-[30px] rounded-small' />
+          <img src={marketDetails.image} alt="" srcSet="" className='w-[30px] h-[30px] rounded-small' />
           <Link to={`/home/${marketDetails.id}`} className=' font-semibold text-primary hover:underline hover:underline-offset-2 hover:decoration-2 leading-4.5'>{marketDetails.title}</Link>
         </div>
         <div className=' w-full flex gap-2 mt-4'>

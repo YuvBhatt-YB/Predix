@@ -42,7 +42,7 @@ export const runLiquidityProviderWorker = async(markets: string[]) => {
                 safeRebalance(marketId,BOT_ID,processingMarkets,commandClient)
             }
             
-        }, 300);
+        }, 1500);
 
         setInterval(()=>{
             for(const marketId of markets){
@@ -50,7 +50,7 @@ export const runLiquidityProviderWorker = async(markets: string[]) => {
                     safeRebalance(marketId,BOT_ID,processingMarkets,commandClient)
                 }
             }
-        },2000)
+        },15000)
     }catch(error){
         console.error(`Error in Liquidity Provider Worker : ${error}`)
     }
@@ -102,8 +102,13 @@ const rebalanceMarket = async(marketId: string,BOT_ID:string,commandClient:Redis
     if(!holdings.YES || !holdings.NO){
         //create holding
         await createHolding(BOT_ID,marketId)
-        holdings = await findHolding(BOT_ID,marketId)
+        
     }
+
+    await ensureLPWallet(BOT_ID)
+    await ensureLPInventory(BOT_ID,marketId)
+
+    holdings = await findHolding(BOT_ID,marketId)
     
     //get Depth
     const depth: Depth = await getDepth(marketId,commandClient)
@@ -131,19 +136,12 @@ const rebalanceMarket = async(marketId: string,BOT_ID:string,commandClient:Redis
     const inventory = yesTotal - noTotal
     
     if(Math.abs(inventory) > LP_CONFIG.maxInventory * 2){
-        console.log("Inventory EXTREME - resetting LP")
+        console.log("Inventory EXTREME - refilling LP inventory before rebalance")
 
-        const existingOrders = await prisma.order.findMany({
-            where:{
-                userId:BOT_ID,
-                marketId,
-                status:"OPEN"
-            }
-        })
 
-        await Promise.all(existingOrders.map(order => cancelOrder({...order,createdAt:order.createdAt.toISOString()},commandClient)))
+        await ensureLPInventory(BOT_ID,marketId)
 
-        return
+        holdings = await findHolding(BOT_ID,marketId)
     }
 
 
@@ -294,59 +292,99 @@ const normalizePrice = (price: number) => Number(price.toFixed(2))
 
 const roundQty = (q:number) => Math.round(q)
 
-const compareAndCreateFinalDesiredOrders = async(BOT_ID:string,marketId:string,desiredOrders:DesiredOrders) => {
-    const toCreate: DesiredOrder[] = []
-    const toCancel: Order[] = []
-    const allDesired = [...desiredOrders.YES,...desiredOrders.NO]
-    const existingOrdersMap = new Map()
+const compareAndCreateFinalDesiredOrders = async (
+    BOT_ID: string,
+    marketId: string,
+    desiredOrders: DesiredOrders
+) => {
+    const toCreate: DesiredOrder[] = [];
+    const toCancel: Order[] = [];
+
+    const allDesired = [...desiredOrders.YES, ...desiredOrders.NO];
 
     const existingOrders = await prisma.order.findMany({
-        where:{
-            userId:BOT_ID,
-            marketId:marketId,
-            status:"OPEN"
-        }
-    })
-    if(existingOrders.length === 0){
-        for (const order of allDesired){
-            toCreate.push(order)
-        }
-        return {
-            CREATE:toCreate,
-            CANCEL:[]
-        }
-    }else{
-        for(const order of existingOrders){
-            const key = `${order.outcome}-${order.type}-${normalizePrice(order.price)}`
-            existingOrdersMap.set(key,order)
-        }
+        where: {
+            userId: BOT_ID,
+            marketId: marketId,
+            status: {
+                in: ["OPEN", "PARTIAL"],
+            },
+            remainingQuantity: {
+                gt: 0,
+            },
+        },
+    });
 
-        for (const order of allDesired){
-            const key = `${order.outcome}-${order.type}-${normalizePrice(order.price)}`
-            if(!existingOrdersMap.has(key)){
-                toCreate.push(order)
-            }else{
-                const existingOrder:Order = existingOrdersMap.get(key)
-                if(Math.abs(existingOrder.remainingQuantity - order.quantity) > 1){
-                    toCancel.push(existingOrder)
-                    toCreate.push(order)
-                }
-
-                existingOrdersMap.delete(key)
-            }
-        }
-
-        for(const [_,order] of existingOrdersMap){
-            toCancel.push(order)
+    if (existingOrders.length === 0) {
+        for (const order of allDesired) {
+            toCreate.push(order);
         }
 
         return {
-            CREATE:toCreate,
-            CANCEL:toCancel
+            CREATE: toCreate,
+            CANCEL: [],
+        };
+    }
+
+    
+    const existingOrdersMap = new Map<string, Order[]>();
+
+    for (const order of existingOrders) {
+        const key = `${order.outcome}-${order.type}-${normalizePrice(order.price)}`;
+
+        if (!existingOrdersMap.has(key)) {
+            existingOrdersMap.set(key, []);
+        }
+
+        existingOrdersMap.get(key)!.push({...order,createdAt:order.createdAt.toString()});
+    }
+
+    for (const desiredOrder of allDesired) {
+        const key = `${desiredOrder.outcome}-${desiredOrder.type}-${normalizePrice(desiredOrder.price)}`;
+
+        const matchingExistingOrders = existingOrdersMap.get(key);
+
+        if (!matchingExistingOrders || matchingExistingOrders.length === 0) {
+            toCreate.push(desiredOrder);
+            continue;
+        }
+
+        // Keep only one matching order for this desired price level
+        const existingOrder = matchingExistingOrders.shift()!;
+
+        const quantityDiff = Math.abs(
+            Number(existingOrder.remainingQuantity) - Number(desiredOrder.quantity)
+        );
+
+        const quantityDiffPercent =
+            Number(desiredOrder.quantity) > 0
+                ? quantityDiff / Number(desiredOrder.quantity)
+                : 1;
+
+        // Only replace if quantity difference is very large
+        if (quantityDiffPercent > 0.4) {
+            toCancel.push(existingOrder);
+            toCreate.push(desiredOrder);
+        }
+
+        
+        if (matchingExistingOrders.length === 0) {
+            existingOrdersMap.delete(key);
         }
     }
-}
 
+    
+    for (const orders of existingOrdersMap.values()) {
+        for (const order of orders) {
+            toCancel.push(order);
+        }
+    }
+
+    return {
+        CREATE: toCreate,
+        CANCEL: toCancel,
+    };
+};
 const normalize = (x:number) => Number(x.toFixed(2))
 const generateDesiredOrders = (yesLadder:Ladder,noLadder:Ladder,BOT_ID:string,marketId:string,buySize:number,sellSize:number) => {
     const desiredYesOrders: DesiredOrder[] = []
@@ -593,6 +631,13 @@ const placeOrder = async (order: DesiredOrder, commandClient: Redis) => {
             const availableShares = holdings.shares
             finalQty = Math.min(order.quantity,availableShares)
 
+            if (finalQty < LP_CONFIG.minOrderSize) {
+                console.log(
+                    `LP: Not enough ${order.outcome} shares to place meaningful SELL order`,
+                );
+                return null;
+            }
+
             if(finalQty <=0) return null
             await tx.holdings.update({
                 where: {
@@ -770,6 +815,83 @@ const orderDepthUpdate = async (order: Order, commandClient: Redis,depthLevelUpd
         );
     }
 };
+
+const ensureLPInventory = async(BOT_ID:string,marketId:string) => {
+    const MIN_SHARES = LP_CONFIG.minShares
+    const TARGET_SHARES = LP_CONFIG.targettedShares
+
+    const holdings = await prisma.holdings.findMany({
+        where:{
+            userId:BOT_ID,
+            marketId
+        }
+    })
+
+    for(const outcome of ["YES","NO"] as const){
+        const holding = holdings.find(h => h.outcome === outcome)
+        if(!holding){
+            await prisma.holdings.create({
+                data:{
+                    userId:BOT_ID,
+                    marketId,
+                    outcome,
+                    shares:TARGET_SHARES,
+                    lockedShares:0,
+                    avgPrice:0.5
+                }
+            })
+            continue
+        }
+        if(holding?.shares < MIN_SHARES){
+            const refillAmount = TARGET_SHARES - holding.shares
+            await prisma.holdings.update({
+                where:{
+                    userId_marketId_outcome:{
+                        userId:BOT_ID,
+                        marketId,
+                        outcome
+                    }
+                },data:{
+                    shares:{
+                        increment:refillAmount
+                    }
+                }
+            })
+
+            console.log(`LP inventory refilled: ${outcome} +${refillAmount}`)
+        }
+    }
+}
+
+const ensureLPWallet = async(BOT_ID:string) => {
+    const MIN_BALANCE = LP_CONFIG.minBalance
+    const TARGET_BALANCE = LP_CONFIG.targettedBalance
+
+    const wallet = await prisma.wallet.findUnique({
+        where:{
+            userID:BOT_ID
+        }
+    })
+
+    if(!wallet) return
+
+    if(wallet.balance < MIN_BALANCE){
+        
+
+        await prisma.wallet.update({
+            where:{
+                userID:BOT_ID
+            },
+            data:{
+                balance:{
+                    increment:TARGET_BALANCE
+                }
+            }
+        })
+
+        console.log("LP wallet refilled")
+    }
+}
 
 export const ensureBotSetup = async() => {
 

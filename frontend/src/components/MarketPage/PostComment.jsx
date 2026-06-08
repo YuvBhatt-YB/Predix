@@ -22,8 +22,7 @@ const PostComment = ({marketId}) => {
     }
     try {
       setIsPosting(true)
-      const response = await api.post('/',data)
-      console.log(response)
+      await api.post('/',data)
       setComment("")
       setError("")
     } catch (error) {

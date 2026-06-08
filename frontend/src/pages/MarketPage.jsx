@@ -5,42 +5,54 @@ import Orderbook from '@/components/MarketPage/Orderbook'
 import Trade from '@/components/MarketPage/Trade'
 
 import React, { useEffect, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useSearchParams } from 'react-router-dom'
 import api from "../api/markets"
-import { useSelector } from 'react-redux'
+import { useDispatch, useSelector } from 'react-redux'
 import Loading from '@/components/ui/Loading'
 import useTrades from '@/hooks/useTrades'
+import { resetTrade, setAmount, setSelectedCase, setSelectedOption } from '@/state/trade/trade';
 const MarketPage = () => {
+  const [searchParams] = useSearchParams()
   const {marketId} = useParams()
-  const {profileImg} = useSelector((state)=>state.user.userData)
-  const [marketData,setMarketData] = useState({})
-  const {tradeExecuted,depthAdded,depthUpdated,orderBook,yesAsks,yesBids,noAsks,noBids,yesSpread,noSpread,lastProbability,chartData,marketPageError,marketUpdates,volume} = useTrades(marketId)
-  useEffect(()=>{
-    const fetchMarketData = async () => {
-      const query = `/${marketId}`
-      console.log(query)
-      const response = await api.get(`/${marketId}`)
-      setMarketData(response.data.marketDetails)
-      console.log(response)
+  const {id} = useSelector((state)=>state.user.userData)
+  const [marketData,setMarketData] = useState(null)
+  const {tradeExecuted,depthAdded,depthUpdated,orderBook,yesAsks,yesBids,noAsks,noBids,yesSpread,noSpread,lastProbability,chartData,marketPageError,marketUpdates,volume,prices,setPrices,setVolume} = useTrades(marketId)
+  const dispatch = useDispatch()
+  useEffect(() => {
+      dispatch(resetTrade());
+      const fetchMarketData = async () => {
+          try {
+              const response = await api.get(`/${marketId}`);
+              const marketDetails = response.data.marketDetails;
+              setMarketData(marketDetails);
+              setPrices({
+                  YES: marketDetails.currentYes ?? 0.5,
+                  NO: marketDetails.currentNo ?? 0.5,
+              });
+              setVolume(marketDetails.volume);
+          } catch (error) {
+              console.error(error);
+          }
+      };
+      fetchMarketData();
+  }, []);
+  useEffect(() => {
+    const isExitMode = searchParams.get("mode") === "exit"
+    if(isExitMode){
+      dispatch(setSelectedCase("SELL"))
+      dispatch(setSelectedOption(searchParams.get("outcome")))
+      dispatch(setAmount(searchParams.get("availableQuantity")))
     }
-    fetchMarketData()
-  },[])
+  },[searchParams,dispatch])
   return (
     <div className=" max-width mx-auto px-2 lg:px-0 ">
-      <p>Hello</p>
-      <p>{JSON.stringify(tradeExecuted)}</p>
-      <p>{JSON.stringify(depthAdded)}</p>
-      <p>{JSON.stringify(depthUpdated)}</p>
-      <p>{JSON.stringify(orderBook)}</p>
-      <p>{JSON.stringify(chartData)}</p>
-      <p>----------------------------------------------</p>
-      <p>{JSON.stringify(marketUpdates)}</p>
+      
       <div className="  lg:flex lg:justify-between lg:items-start gap-3 py-6 ">
         <div className="flex-1">
-          {marketData ? (<DisplayChart marketData={marketData} lastProbability={lastProbability} chartData={chartData} marketPageError={marketPageError} volume={volume} />): (<Loading />)}
+          {marketData ? (<DisplayChart marketData={marketData} lastProbability={lastProbability} prices={prices} chartData={chartData} marketPageError={marketPageError} volume={volume} />): (<Loading />)}
           
           <div className=' lg:hidden'>
-            {marketData ? (<Trade marketData={marketData} />): (<Loading />)}
+            {marketData ? (<Trade  prices={prices} marketId={marketId} userId={id} />): (<Loading />)}
             
           </div>
           <Orderbook yesAsks={yesAsks} yesBids={yesBids} noAsks={noAsks} noBids={noBids} yesSpread={yesSpread} noSpread={noSpread} marketPageError={marketPageError} />
@@ -48,7 +60,7 @@ const MarketPage = () => {
           
         </div>
         <div className='max-lg:hidden'>
-            {marketData ? (<Trade marketData={marketData} />): (<Loading />)}
+            {marketData ? (<Trade prices={prices} marketId={marketId} userId={id} />): (<Loading />)}
             
         </div>
       </div>

@@ -1,6 +1,8 @@
 import axios from "axios"
+import { backendUrl } from "./backendUrl";
 
 
 export default axios.create({
-    baseURL:"http://localhost:8000/markets"
+    baseURL:`${backendUrl}/markets`,
+    
 })

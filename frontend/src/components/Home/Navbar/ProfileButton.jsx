@@ -38,7 +38,7 @@ const ProfileButton = () => {
             <img
               src={profileImg}
               alt=""
-              srcset=""
+              srcSet=""
               className="w-[40px] h-[40px] rounded-small"
             />
             <div>

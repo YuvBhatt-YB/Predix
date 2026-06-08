@@ -21,7 +21,6 @@ export default function useTransaction() {
   };
   useEffect(() => {
     fetchTransactions();
-    console.log("Transaction Mounted");
   }, []);
 
   return {

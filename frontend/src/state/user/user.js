@@ -16,6 +16,13 @@ const userSlice = createSlice({
         },
         setLoading:(state,action)=>{
             state.loading = action.payload
+        },
+        updateWallet: (state,action) =>{
+            if (!state.userData) return
+
+            state.userData.wallet.balance = action.payload.balance
+            state.userData.wallet.locked = action.payload.locked
+
         }
     },
     extraReducers:(builder) => {
@@ -40,5 +47,5 @@ export const getUserData = createAsyncThunk(
     }
 )
 
-export const {setUserData,setLoading} = userSlice.actions
+export const {setUserData,setLoading,updateWallet} = userSlice.actions
 export default userSlice.reducer

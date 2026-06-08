@@ -11,6 +11,10 @@ export default function useTrades(marketId){
     const [tradeExecuted,setTradeExecuted] = useState([])
     const [chartData,setChartData] = useState([])
     const [lastProbability,setLastProbability] = useState(0)
+    const [prices,setPrices] = useState({
+        YES:0,
+        NO:0
+    })
     const [volume,setVolume] = useState(0)
     const [marketUpdates,setMarketUpdates] = useState([])
     const [orderBook,setOrderBook] = useState({
@@ -43,22 +47,17 @@ export default function useTrades(marketId){
     const bestNoBid = noBids[0]?.price
     const noSpread = bestNoAsk !== undefined && bestNoBid !== undefined ? bestNoAsk - bestNoBid : null
     
-    console.log(lastProbability)
     useEffect(() => {
         const socket = io(tradesSocketRoute)
 
         socket.emit("joinTradeMarket",marketId)
 
         socket.on("tradeExecuted",(trades) => {
-            console.log(trades)
             tradeExecutedBuffer.current.push(...trades)
         })
         socket.on("depthAdded",(depthAddedData) =>{
-            console.log("depthAddedData:", depthAddedData)
             const updates = Array.isArray(depthAddedData) ? depthAddedData : [depthAddedData]
             depthAddedBuffer.current.push(...updates)
-            
-            console.log(depthAdded)
         })
         socket.on("depthUpdated",(depthUpdatedData) => {
             const updates = Array.isArray(depthUpdatedData) ? depthUpdatedData : [depthUpdatedData]
@@ -74,11 +73,24 @@ export default function useTrades(marketId){
         socket.on("marketUpdated",(marketUpdatedData) => {
             const update = Array.isArray(marketUpdatedData) ? marketUpdatedData.flat()[0] : marketUpdatedData
             if(!update) return
-            console.log("marketUpdatedData",marketUpdatedData)
             setMarketUpdates(prevState => [...prevState,update])
-            setLastProbability(update.price)
+            
             setVolume(update.volume)
+
+            if(update.outcome === "YES" || update.outcome || "NO"){
+                setPrices((prev) => ({
+                    ...prev,
+                    [update.outcome]:update.price
+                }))
+            }
+
+            if(update.outcome === "YES"){
+                setLastProbability(update.price)
+            }
         })
+        return () => {
+            socket.disconnect()
+        }
     },[marketId])
     useEffect(()=>{
         const fetchChartData = async() => {
@@ -124,7 +136,6 @@ export default function useTrades(marketId){
             if (tradeExecutedBuffer.current.length > 0) {
                 const trades = tradeExecutedBuffer.current
                 tradeExecutedBuffer.current = []
-                console.log(trades)
                 const newPoints = trades.map((trade) => {
                     return {
                         time:trade.dateTime,
@@ -140,7 +151,6 @@ export default function useTrades(marketId){
                 setOrderBook((prev) => {
                     let updatedBook = {...prev}
                     for(const data of updates){
-                        console.log(data)
                         const newSideData = {
                             ...updatedBook[data.outcome][data.type],
                         };
@@ -206,6 +216,9 @@ export default function useTrades(marketId){
         chartData,
         marketPageError,
         marketUpdates,
-        volume
+        volume,
+        prices,
+        setPrices,
+        setVolume
     }
 }

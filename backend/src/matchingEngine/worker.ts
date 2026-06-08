@@ -1,10 +1,11 @@
 
 import Redis from "ioredis"
-import { Order } from "../types/Trade"
+import { EngineEvent, Order } from "../types/Trade"
 import { matchOrder } from "./engine"
 import {  createRedisClient } from "./redis"
 import { rebuildDepthRedisFromDB } from "./rebuild"
 import type { Worker } from "cluster"
+import { cancelOrder } from "./cancelOrder";
 
 export const runWorker = async (markets: string[]) => {
 
@@ -28,10 +29,22 @@ const listentoWorkerQueue = async(workerId:string,client:Redis,orderBook:Redis) 
             if(!res) continue
             console.log(`Order recieved for Worker ${workerId}`)
             console.log(res)
-            const parsed = JSON.parse(res[1])
-            const order:Order = parsed
-            const marketId = order.marketId
-            await matchOrder(order,marketId,orderBook)
+            const parsed:EngineEvent = JSON.parse(res[1])
+            switch(parsed.type){
+                case "PLACE_ORDER":{
+                    const order:Order = parsed.payload
+                    const marketId = order.marketId
+                    await matchOrder(order,marketId,orderBook)
+                    break
+                }
+                case "CANCEL_ORDER":{
+                    await cancelOrder(parsed.payload.orderId,parsed.payload.userId,orderBook)
+                    break
+                }
+            }
+            
+            
+            
 
         }catch(error){
             console.error(`Error in listener for Worker${workerId} : ${error} `)

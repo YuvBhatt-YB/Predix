@@ -23,14 +23,11 @@ export default function useMarketData(){
             query.append("take", "12");
             if (nextCursor !== null && !reset) query.append("cursor", nextCursor);
 
-            console.log(`/${query.toString()}`);
             const response = await api.get(`/?${query.toString()}`)
             const marketData = response.data.markets
             const ids = marketData.map(m => m.id)
-            console.log(ids)
             const summaryRes = await api.post(`/summary`,{marketIds:ids})
             const summaryData = summaryRes.data.summary
-            console.log(marketData)
             const summaryMap = {}
             summaryData.forEach(summary => {
                 summaryMap[summary.id] = summary
@@ -43,7 +40,6 @@ export default function useMarketData(){
                     volume:summary.volume ?? 0
                 }
             })
-            console.log(mergedMarkets)
             if(reset){
                 dispatch(resetMarkets())
                 dispatch(setMarkets(mergedMarkets))
@@ -52,10 +48,9 @@ export default function useMarketData(){
             }
             
             dispatch(setNextCursor(response.data.nextCursor))
-            console.log(response)
             
         }catch(error){
-            console.error(error)
+            
         }finally{
             dispatch(setLoading(false))
         }
@@ -82,7 +77,6 @@ export default function useMarketData(){
         const observer = new IntersectionObserver((entries)=>{
             const target = entries[0]
             if(target.isIntersecting && !loading && nextCursor){
-                console.log("This is being observed")
                 fetchMarkets()
             }
         },{root:null,threshold:0.5})

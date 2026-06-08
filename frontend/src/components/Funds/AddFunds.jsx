@@ -39,7 +39,6 @@ const AddFunds = () => {
     }finally{
       setIsSubmitting(false)
     }
-    console.log(parsedAmount)
   }
   return (
     <div>

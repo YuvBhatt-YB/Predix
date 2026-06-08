@@ -15,7 +15,7 @@ import PaymentButton from './PaymentButton';
 import AddFunds from './AddFunds';
 import Transactions from './Transactions';
 import { useSelector } from 'react-redux';
-import { formatAmount } from '@/utils/amount';
+import { formatAmount, formatCurrency } from '@/utils/amount';
 const FundsContentModel = () => {
   const {username,wallet} = useSelector((state)=>state.user.userData)
   
@@ -47,7 +47,7 @@ const FundsContentModel = () => {
             <p className=" text-small leading-3 text-primaryGray">
               Current Balance
             </p>
-            <p className=" font-semibold text-2xl text-primary">{formatAmount(wallet.balance)}</p>
+            <p className=" font-semibold text-2xl text-primary">${formatCurrency(wallet.balance)}</p>
           </div>
         </div>
         <AddFunds />

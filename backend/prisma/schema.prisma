@@ -94,6 +94,7 @@ model Holdings {
   market Market @relation(fields:[marketId],references: [id],onDelete: Cascade)
 
   @@unique([userId,marketId,outcome])
+  @@index([userId])
 }
 model Market {
   id String @id @default(cuid())
@@ -153,6 +154,7 @@ model Order {
   @@index([marketId,createdAt])
   @@index([userId,createdAt])
   @@index([userId,marketId,status])
+  @@index([userId,status,createdAt])
 }
 
 model Trade {
@@ -174,4 +176,8 @@ model Trade {
   seller User @relation("Seller",fields: [sellerId],references: [id])
 
   createdAt DateTime @default(now())
+
+  @@index([buyerId,createdAt])
+  @@index([sellerId,createdAt])
+  @@index([marketId,createdAt])
 }

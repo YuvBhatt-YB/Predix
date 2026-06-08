@@ -4,11 +4,10 @@ import { Button } from "@/components/ui/button"
 import ProfileButton from './Navbar/ProfileButton';
 import { Link, useNavigate,  } from 'react-router-dom';
 import { useSelector } from 'react-redux';
-import { formatAmount } from '@/utils/amount';
+import { formatAmount, formatCurrency } from '@/utils/amount';
 
 const Navbar = () => {
   const userData = useSelector((state)=> state.user.userData)
-  console.log(userData)
   const navigate = useNavigate()
   const handleNavigateFunds = () => {
     navigate(`/funds`)
@@ -29,7 +28,7 @@ const Navbar = () => {
                   <CiWallet />
                 </p>
                 
-                <p className=" text-darkGreen">{formatAmount(userData.wallet.balance)}</p>
+                <p className=" text-darkGreen">${formatCurrency(userData.wallet.balance)}</p>
               </div>
               <Button
                 size="lg"

@@ -21,7 +21,7 @@ const HeroSection = () => {
         </div>
         </div>
         <div className='translate-x-1/3 hidden md:block'>
-            <img src={hero} alt="" srcset="" className='w-[850px] max-w-none object-contain rounded-img' />
+            <img src={hero} alt="" srcSet="" className='w-[850px] max-w-none object-contain rounded-img' />
         </div>
       </div>
     </div>
