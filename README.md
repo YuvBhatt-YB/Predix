@@ -50,7 +50,7 @@ Below are selected screens from the Predix web application.
 - Socket.IO updates for wallet, market, orderbook, trade, and comment events
 - Prisma + PostgreSQL persistence
 - React/Vite user frontend
-- Admin app prototype for market management workflows
+- Separate admin app workspace for in-progress market management workflows
 
 ## Why Predix Is More Than a CRUD App
 
@@ -106,10 +106,20 @@ The backend handles wallet settlement, holdings updates, order state transitions
 
 ### Admin / Market Management
 
-- Backend endpoint for market creation
-- Separate admin React/Vite app is present
-- Admin dashboard, market list, create-market, and resolve-market screens exist in demo/prototype form
-- Market resolution UI should be treated as extendable unless backend settlement logic is expanded further
+- Separate admin React/Vite app is present in the `admin/` folder
+- Admin dashboard shell with placeholder stats for users, markets, markets ending today, and pending resolutions
+- Market list and market-detail modal use local dummy market data
+- Create-market form includes local validation and preview state
+- Resolve-market screen includes confirmation UI for YES, NO, and cancel actions
+- Admin form actions currently run locally and log values instead of calling backend APIs
+
+## Admin App
+
+Predix includes a separate admin application inside the `admin/` folder. It is intended for administrative workflows such as market review, market creation, and market resolution, but it is currently under active development and should be treated as an in-progress prototype rather than a complete production-ready admin panel.
+
+The current admin app is a React/Vite/Tailwind CSS workspace with React Router routes for the dashboard, all markets, create market, resolve market, and login screens. The market list and resolve views currently use local dummy data, dashboard stats are placeholders, and login/create/resolve actions validate or confirm in the UI before logging locally. Some functionality may be incomplete or not fully connected yet.
+
+The admin panel is not the primary user-facing trading app. The main trading experience remains in the `frontend/` app.
 
 ## Tech Stack
 
@@ -121,7 +131,7 @@ The backend handles wallet settlement, holdings updates, order state transitions
 | Real-time / Queue | Redis, ioredis, Socket.IO, Redis queues, Redis streams, Redis pub/sub |
 | Auth | Passport.js, Passport Local, Google OAuth, Express Session, bcrypt |
 | ORM | Prisma ORM |
-| Admin | React, Vite, Tailwind CSS, React Router |
+| Admin | React, Vite, Tailwind CSS, React Router DOM |
 | Tooling | Git, npm, TypeScript, ESLint, environment-based configuration |
 
 ## Architecture Overview
@@ -281,6 +291,8 @@ npm run preview
 ```
 
 ### 4. Admin App Setup
+
+The admin app runs as a separate Vite workspace and is currently in progress.
 
 ```bash
 cd admin

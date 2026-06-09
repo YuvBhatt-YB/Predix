@@ -28,7 +28,7 @@ const Navbar = () => {
                   <CiWallet />
                 </p>
                 
-                <p className=" text-darkGreen">${formatCurrency(userData.wallet.balance)}</p>
+                <p className=" text-darkGreen">${formatCurrency(userData?.wallet?.balance ?? 0)}</p>
               </div>
               <Button
                 size="lg"

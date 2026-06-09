@@ -40,37 +40,57 @@ passport.use(
 );
 
 passport.use(new GoogleStrategy({
-    clientID : process.env.GOOGLE_CLIENT_ID ?? "",
+    clientID: process.env.GOOGLE_CLIENT_ID ?? "",
     clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
     callbackURL: "http://localhost:8000/auth/google/callback"
   },
   async function(accessToken, refreshToken, profile, done) {
-    try{
-      const email = profile.emails?.[0]?.value
-      if(!email){
-        throw new Error("Google Provider didn't return any email")
-      } 
-      const user = await prisma.user.findUnique({
-      where:{
-        email
+    try {
+      const email = profile.emails?.[0]?.value;
+
+      if (!email) {
+        throw new Error("Google Provider didn't return any email");
       }
-    })
-    if (!user) {
-      const avatarURL = generateProfileImg(profile.displayName);
-      const user = await prisma.user.create({
-        data: {
-          username: profile.displayName,
-          email: email || "",
-          password: "",
-          profileImg: avatarURL,
-          wallet:{
-            create:{
-              balance:0
-            }
-          }
+
+      let user = await prisma.user.findUnique({
+        where: {
+          email
         },
-        include:{wallet:true}
+        include: {
+          wallet: true
+        }
       });
+
+      if (!user) {
+        const avatarURL = generateProfileImg(profile.displayName);
+
+        user = await prisma.user.create({
+          data: {
+            username: profile.displayName,
+            email,
+            password: "",
+            profileImg: avatarURL,
+            wallet: {
+              create: {
+                balance: 0
+              }
+            }
+          },
+          include: {
+            wallet: true
+          }
+        });
+      }
+
+      if (!user.wallet) {
+        await prisma.wallet.create({
+          data: {
+            userID: user.id,
+            balance: 0
+          }
+        });
+      }
+
       return done(null, {
         id: user.id,
         email: user.email,
@@ -78,19 +98,10 @@ passport.use(new GoogleStrategy({
         profileImg: user.profileImg,
         createdAt: user.createdAt,
       });
-    } else {
-      return done(null, {
-        id: user.id,
-        email: user.email,
-        username: user.username,
-        profileImg: user.profileImg,
-        createdAt: user.createdAt,
-      });
+
+    } catch (err) {
+      return done(err);
     }
-    }catch(err){
-      return done(err)
-    }
-    
   }
 ));
 passport.serializeUser((user: any,done)=>{
