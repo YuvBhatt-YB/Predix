@@ -2,10 +2,11 @@ import { Request, Response } from "express";
 import { Prisma } from "@prisma/client";
 import prisma from "../prisma";
 import { createPriceFetchClient } from "../redisClient";
+import { getQueryString } from "../services/queryHelper";
 
 
 export const handleGetPositions = async(req:Request,res:Response) => {
-    const { userId } = req.params;
+    const userId  = getQueryString(req,"userId");
     let redis
     try{
         if(!userId){
@@ -95,7 +96,7 @@ export const handleGetPositions = async(req:Request,res:Response) => {
 }
 
 export const handleGetOpenOrders = async(req:Request,res:Response) => {
-    const { userId } = req.params;
+    const userId  = getQueryString(req,"userId");
     try{
         if(!userId){
             return res.status(400).json({message:"No User ID Found"})
@@ -158,7 +159,7 @@ export const handleGetOpenOrders = async(req:Request,res:Response) => {
 }
 
 export const handleGetTrades = async(req:Request,res:Response) => {
-    const { userId } = req.params;
+    const userId  = getQueryString(req,"userId");
     const page = Number(req.query.page) || 1
     const limit = Number(req.query.limit) || 20
 
@@ -238,7 +239,7 @@ export const handleGetTrades = async(req:Request,res:Response) => {
 }
 
 export const handleGetUserStats = async(req:Request,res:Response) => {
-    const { userId } = req.params;
+    const userId  = getQueryString(req,"userId");
     let redis
     try{
         if(!userId){

@@ -7,6 +7,13 @@ import { BOT, LP_CONFIG } from "./LP_CONFIG"
 import { addAndUpdatePriceDepth, addOrderToRedisQueue } from "./engine"
 import { OrderOutcome } from "@prisma/client"
 
+const DIRTY_REBALANCE_INTERVAL_MS = Number(
+  process.env.DIRTY_REBALANCE_INTERVAL_MS || 1500
+);
+
+const FULL_REBALANCE_INTERVAL_MS = Number(
+  process.env.FULL_REBALANCE_INTERVAL_MS || 15000
+);
 
 export const runLiquidityProviderWorker = async(markets: string[]) => {
     console.log(`Liquidity Provider Worker started for ${markets.length} markets.`)
@@ -42,7 +49,7 @@ export const runLiquidityProviderWorker = async(markets: string[]) => {
                 safeRebalance(marketId,BOT_ID,processingMarkets,commandClient)
             }
             
-        }, 1500);
+        }, DIRTY_REBALANCE_INTERVAL_MS);
 
         setInterval(()=>{
             for(const marketId of markets){
@@ -50,7 +57,7 @@ export const runLiquidityProviderWorker = async(markets: string[]) => {
                     safeRebalance(marketId,BOT_ID,processingMarkets,commandClient)
                 }
             }
-        },15000)
+        },FULL_REBALANCE_INTERVAL_MS)
     }catch(error){
         console.error(`Error in Liquidity Provider Worker : ${error}`)
     }

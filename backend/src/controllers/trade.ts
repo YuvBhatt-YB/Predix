@@ -3,6 +3,7 @@ import { tradeSchema } from "../Schemas/trade";
 import prisma from "../prisma";
 import { placeOrder, validateTradeCriteria } from "../services/tradeLogic";
 import { redis } from "../redisClient";
+import { getQueryString } from "../services/queryHelper";
 
 const rebuildMarketDepthFromOrderBook = async(marketId:string) => {
     for(const outcome of ["YES","NO"]){
@@ -114,7 +115,7 @@ export const handlePostTrade = async(req: Request,res:Response) => {
 }
 
 export const handleGetTradeChartData = async(req:Request,res:Response) => {
-    const { marketId } = req.params;
+    const marketId = getQueryString(req,"marketId")
     try{
         if(!marketId) return res.status(400).json({message:"No Market ID Found"})
         const market = await prisma.market.findUnique({
@@ -144,7 +145,7 @@ export const handleGetTradeChartData = async(req:Request,res:Response) => {
 }
 
 export const handleGetOrderBookData = async(req:Request,res:Response) => {
-    const { marketId } = req.params;
+    const marketId = getQueryString(req,"marketId")
     try{
         if(!marketId) return res.status(400).json({message:"No Market ID Found"})
         
@@ -188,7 +189,7 @@ export const handleGetOrderBookData = async(req:Request,res:Response) => {
 
 
 export const handleCancelTrade = async(req:Request,res:Response) => {
-    const { orderId } = req.params;
+    const orderId = getQueryString(req,"orderId")
     try{
         if(!orderId){
             return res.status(400).json({message:"Order ID is required"})
