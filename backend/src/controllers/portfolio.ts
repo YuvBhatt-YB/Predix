@@ -5,7 +5,7 @@ import { createPriceFetchClient } from "../redisClient";
 
 
 export const handleGetPositions = async(req:Request,res:Response) => {
-    const userId: string | undefined = req.params.userId
+    const { userId } = req.params;
     let redis
     try{
         if(!userId){
@@ -95,7 +95,7 @@ export const handleGetPositions = async(req:Request,res:Response) => {
 }
 
 export const handleGetOpenOrders = async(req:Request,res:Response) => {
-    const userId: string | undefined = req.params.userId
+    const { userId } = req.params;
     try{
         if(!userId){
             return res.status(400).json({message:"No User ID Found"})
@@ -158,7 +158,7 @@ export const handleGetOpenOrders = async(req:Request,res:Response) => {
 }
 
 export const handleGetTrades = async(req:Request,res:Response) => {
-    const userId: string | undefined = req.params.userId
+    const { userId } = req.params;
     const page = Number(req.query.page) || 1
     const limit = Number(req.query.limit) || 20
 
@@ -238,7 +238,7 @@ export const handleGetTrades = async(req:Request,res:Response) => {
 }
 
 export const handleGetUserStats = async(req:Request,res:Response) => {
-    const userId: string | undefined = req.params.userId
+    const { userId } = req.params;
     let redis
     try{
         if(!userId){

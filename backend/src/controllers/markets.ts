@@ -83,7 +83,7 @@ export const handleGetMarkets = async (req: Request,res:Response) => {
 }
 
 export const handleGetMarket = async (req: Request, res: Response) => {
-    const marketId: string | undefined = req.params.marketId;
+    const marketId = typeof req.params.marketId === "string" ? req.params.marketId : undefined;
     let client
     try {
         if (!marketId) {
