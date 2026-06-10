@@ -23,24 +23,29 @@ import { registerWalletHandler } from "./sockets/wallet.socket"
 dotenv.config()
 const app = express()
 const server = http.createServer(app)
-const PORT = 8000
+const PORT = process.env.PORT || 8000
+const allowedOrigins = [
+  process.env.FRONTEND_URL,
+  "http://localhost:5173",
+].filter(Boolean) as string[];
 
 const io: Server = new Server(server,{
-    cors:{origin: "*"}
+    cors:{origin: allowedOrigins,methods:["GET","POST"],credentials:true}
 })
 app.use(cors({
-    origin:"http://localhost:5173",
+    origin:allowedOrigins,
     methods:["GET","POST","PUT","DELETE"],
     credentials:true
 }))
 app.use(express.json())
 app.set("io",io)
+app.set("trust proxy", 1);
 app.use(session({
-    secret:"hello-world",
+    secret:process.env.SESSION_SECRET || "dev-session-secret",
     rolling:true,
     resave:false,
     saveUninitialized: false,
-    cookie:{maxAge:60*60*1000,httpOnly:true,secure:false,sameSite:"lax"}
+    cookie:{maxAge:60*60*1000,httpOnly:true,secure:process.env.NODE_ENV === "production",sameSite:process.env.NODE_ENV === "production" ? "none" : "lax"}
 }))
 app.use(passport.initialize())
 app.use(passport.session())
