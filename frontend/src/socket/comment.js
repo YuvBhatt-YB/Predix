@@ -1,2 +1,3 @@
+import { backendUrl } from "@/backendUrl";
 
-export const commentSocketRoute  = "http://localhost:8000/comments"
+export const commentSocketRoute  = `${backendUrl}/comments`

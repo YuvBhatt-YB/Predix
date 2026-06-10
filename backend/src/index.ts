@@ -44,9 +44,14 @@ app.use(session({
 }))
 app.use(passport.initialize())
 app.use(passport.session())
-app.get("/",(request: Request,response: Response)=>{
-    return response.json({message:"Hello world"})
-})
+
+app.get("/health", (req, res) => {
+  res.status(200).json({
+    status: "ok",
+    uptime: process.uptime(),
+    time: new Date().toISOString(),
+  });
+});
 
 app.use("/auth",authRoute)
 app.use("/markets",marketsRoute)

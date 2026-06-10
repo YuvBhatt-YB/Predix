@@ -1,2 +1,3 @@
+import { backendUrl } from "@/backendUrl";
 
-export const marketsSocketRoute = "http://localhost:8000/markets"
+export const marketsSocketRoute = `${backendUrl}/markets`

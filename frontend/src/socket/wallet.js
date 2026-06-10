@@ -1,2 +1,3 @@
+import { backendUrl } from "@/backendUrl";
 
-export const walletSocketRoute = "http://localhost:8000/wallet"
+export const walletSocketRoute = `${backendUrl}/wallet`

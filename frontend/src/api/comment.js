@@ -1,5 +1,5 @@
 import axios from "axios";
-import { backendUrl } from "./backendUrl";
+import { backendUrl } from "../backendUrl";
 
 
 export default axios.create({
