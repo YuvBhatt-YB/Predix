@@ -10,7 +10,6 @@ const Profile = () => {
   
   return (
     <div className=' max-width mx-auto px-2 lg:px-0'>
-        
       <div >
         <div className=' border-b-1 flex justify-between items-center py-10'>
             <div className='  flex items-center gap-3 md:gap-9'>
