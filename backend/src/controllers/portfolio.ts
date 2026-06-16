@@ -6,7 +6,7 @@ import { getQueryString } from "../services/queryHelper";
 
 
 export const handleGetPositions = async(req:Request,res:Response) => {
-    const userId  = getQueryString(req,"userId");
+    const {userId} = req.params
     let redis
     try{
         if(!userId){
@@ -26,6 +26,10 @@ export const handleGetPositions = async(req:Request,res:Response) => {
             }
         })
         console.log(positions)
+
+        if(positions.length === 0){
+            return res.status(200).json({positions:[]})
+        }
         redis = createPriceFetchClient()
 
         const pipeline = redis.pipeline()
@@ -77,10 +81,6 @@ export const handleGetPositions = async(req:Request,res:Response) => {
         
 
         console.log(redisResults)
-
-        if(!positions){
-            return res.status(400).json({message:`No positions for this userId ${userId}`})
-        }
         
         return res.status(200).json({positions:formattedPositions})
     }catch(err){
@@ -96,7 +96,7 @@ export const handleGetPositions = async(req:Request,res:Response) => {
 }
 
 export const handleGetOpenOrders = async(req:Request,res:Response) => {
-    const userId  = getQueryString(req,"userId");
+    const {userId} = req.params
     try{
         if(!userId){
             return res.status(400).json({message:"No User ID Found"})
@@ -125,12 +125,11 @@ export const handleGetOpenOrders = async(req:Request,res:Response) => {
                 createdAt:"desc"
             }
         })
-        console.log(openOrders)
 
-        if(!openOrders){
-            return res.status(400).json({message:`No open orders for this userId ${userId}`})
+        if(openOrders.length === 0){
+            return res.status(200).json({openOrders:[]})
         }
-
+        
         const formattedOpenOrders = openOrders.map((order) => {
             const filledQuantity = order.quantity - order.remainingQuantity
             return {
@@ -149,7 +148,7 @@ export const handleGetOpenOrders = async(req:Request,res:Response) => {
             };
         })
         
-        return res.status(200).json({openOrders:formattedOpenOrders})
+        return res.status(200).json({message:"Successfully fetched open orders",openOrders:formattedOpenOrders})
     }catch(err){
         console.error(err)
         return res.status(500).json(
@@ -159,7 +158,7 @@ export const handleGetOpenOrders = async(req:Request,res:Response) => {
 }
 
 export const handleGetTrades = async(req:Request,res:Response) => {
-    const userId  = getQueryString(req,"userId");
+    const {userId} = req.params
     const page = Number(req.query.page) || 1
     const limit = Number(req.query.limit) || 20
 
@@ -194,10 +193,8 @@ export const handleGetTrades = async(req:Request,res:Response) => {
         })
         console.log(trades)
 
-      
-
-        if(!trades){
-            return res.status(400).json({message:`No open orders for this userId ${userId}`})
+        if(trades.length === 0){
+            return res.status(200).json({trades:[],hasMore:false,page:page,limit:limit})
         }
 
         const hasMore = trades.length > limit
@@ -233,13 +230,13 @@ export const handleGetTrades = async(req:Request,res:Response) => {
     }catch(err){
         console.error(err)
         return res.status(500).json(
-            {message:"Failed to fetch User Open Orders"}
+            {message:"Failed to fetch User Trades"}
         )
     }
 }
 
 export const handleGetUserStats = async(req:Request,res:Response) => {
-    const userId  = getQueryString(req,"userId");
+    const {userId} = req.params
     let redis
     try{
         if(!userId){
@@ -256,6 +253,23 @@ export const handleGetUserStats = async(req:Request,res:Response) => {
             }
         })
         console.log(positions)
+        if (positions.length === 0) {
+            const marketsTraded = await prisma.trade.groupBy({
+                by: ["marketId"],
+                where: {
+                    OR: [{ buyerId: userId }, { sellerId: userId }],
+                },
+            });
+
+            return res.status(200).json({
+                message: "Successfully fetched User Stats",
+                stats: {
+                    profitLoss: 0,
+                    displayProfitLoss: "$0.00",
+                    marketsTraded: marketsTraded.length,
+                },
+            });
+        }
         redis = createPriceFetchClient()
 
         const pipeline = redis.pipeline()
