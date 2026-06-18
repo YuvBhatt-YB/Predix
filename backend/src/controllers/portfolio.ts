@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import { Prisma } from "@prisma/client";
 import prisma from "../prisma";
 import { createPriceFetchClient } from "../redisClient";
-import { getQueryString } from "../services/queryHelper";
+
 
 
 export const handleGetPositions = async(req:Request,res:Response) => {
