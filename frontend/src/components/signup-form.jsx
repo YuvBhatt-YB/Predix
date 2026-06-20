@@ -72,7 +72,7 @@ export function SignupForm({
         <CardContent className=" font-secondary text-primary">
           <div className="flex flex-col gap-4">
                 <Button variant="outline" className="w-full" onClick={()=>{
-                  window.location.href = "http://localhost:8000/auth/google"
+                  window.location.href = `${import.meta.env.VITE_BACKEND_URL}/auth/google`
                 }}>
                   <FcGoogle />
                   Sign Up with Google
