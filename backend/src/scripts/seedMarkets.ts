@@ -1,6 +1,6 @@
 import { MarketResolution, MarketStatus } from "@prisma/client";
-import prisma from "../src/prisma";
-import { Market } from "../src/types/Market";
+import prisma from "../prisma";
+import { Market } from "../types/Market";
 
 
 const markets: Market[] = [

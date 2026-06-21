@@ -10,7 +10,7 @@
     "dev": "nodemon ./src/index.ts",
     "engine": "nodemon ./src/matchingEngine/engineLauncher.ts",
     "dev:all": "concurrently \"npm run dev\" \"npm run engine\" ",
-    "seed:markets": "ts-node prisma/seedMarkets.ts"
+    "seed:markets": "ts-node src/scripts/seedMarkets.ts"
   },
   "keywords": [],
   "author": "",
