@@ -4,7 +4,7 @@ import os from "os";
 
 import { runWorker } from "./worker";
 import { runRouter, updateWorkerAssignedMarkets } from "./globalRouter";
-import { rebuildPriceRedisFromDB, rebuildRedisFromDB, rebuildVolumeRedisFromDB } from "./rebuild";
+import { rebuildDepthRedisFromDB, rebuildPriceRedisFromDB, rebuildRedisFromDB, rebuildVolumeRedisFromDB } from "./rebuild";
 import { startEngineEventListener } from "./engineEventListener";
 import { ensureBotSetup, runLiquidityProviderWorker } from "./liquidityProviderWorker";
 
@@ -67,6 +67,8 @@ if(cluster.isPrimary){
             if(markets.length === 0){
                 process.exit(0)
             }
+
+            await rebuildDepthRedisFromDB(markets.map((market) => market.id))
             const availableCpus = os.cpus().length;
 
             const defaultMarketWorkers =
