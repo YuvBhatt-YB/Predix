@@ -39,24 +39,41 @@ export const runLiquidityProviderWorker = async(markets: string[]) => {
 
         liquidityClient.on("message",(_,marketId) => {
             dirtyMarkets.add(marketId)
-            console.log(dirtyMarkets)
+            
         })
+        let fullRebalanceRunning = false;
+        let dirtyRebalanceRunning = false;
+        setInterval(async() => {
+            if (dirtyRebalanceRunning) return;
 
-        setInterval(() => {
-            const marketToProcess = Array.from(dirtyMarkets)
+            dirtyRebalanceRunning = true;
+            try{
+                const marketToProcess = Array.from(dirtyMarkets)
             dirtyMarkets.clear()
             for(const marketId of marketToProcess){
-                safeRebalance(marketId,BOT_ID,processingMarkets,commandClient)
+                await safeRebalance(marketId,BOT_ID,processingMarkets,commandClient)
             }
+            }finally{
+                dirtyRebalanceRunning = false;
+            }
+            
             
         }, DIRTY_REBALANCE_INTERVAL_MS);
 
-        setInterval(()=>{
-            for(const marketId of markets){
+        setInterval(async()=>{
+            if (fullRebalanceRunning) return;
+
+            fullRebalanceRunning = true;
+            try{
+                for(const marketId of markets){
                 if(!dirtyMarkets.has(marketId)){
-                    safeRebalance(marketId,BOT_ID,processingMarkets,commandClient)
+                    await safeRebalance(marketId,BOT_ID,processingMarkets,commandClient)
                 }
             }
+            }finally{
+                fullRebalanceRunning = false;
+            }
+            
         },FULL_REBALANCE_INTERVAL_MS)
     }catch(error){
         console.error(`Error in Liquidity Provider Worker : ${error}`)
@@ -119,7 +136,7 @@ const rebalanceMarket = async(marketId: string,BOT_ID:string,commandClient:Redis
     
     //get Depth
     const depth: Depth = await getDepth(marketId,commandClient)
-    console.log(depth)
+   
     
     //compute Anchor
     const bestYesBid = getBestBid(depth.YES.BUY)
@@ -127,13 +144,11 @@ const rebalanceMarket = async(marketId: string,BOT_ID:string,commandClient:Redis
     const bestNoBid = getBestBid(depth.NO.BUY)
     const bestNoAsk = getBestAsk(depth.NO.SELL)
 
-    console.log(`Best Yes Bid & Ask for market ${bestYesAsk} , ${bestYesBid}`)
-    console.log(`Best No Bid & Ask for market ${bestNoAsk} , ${bestNoBid}`)
+   
 
     const yesAnchor = await computeAnchor(bestYesBid,bestYesAsk,LP_CONFIG.tick,marketId)
     const noAnchor = await computeAnchor(bestNoBid,bestNoAsk,LP_CONFIG.tick,marketId)
-    console.log(`Yes Anchor for  ${marketId} is : ${yesAnchor}`)
-    console.log(`No Anchor for  ${marketId} is : ${noAnchor}`)
+    
     if(!yesAnchor) return
     if(!noAnchor) return
     

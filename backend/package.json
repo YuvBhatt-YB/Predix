@@ -11,7 +11,9 @@
     "engine": "nodemon ./src/matchingEngine/engineLauncher.ts",
     "dev:all": "concurrently \"npm run dev\" \"npm run engine\" ",
     "seed:markets": "ts-node src/scripts/seedMarkets.ts",
-    "start:engine": "node ./dist/matchingEngine/engineLauncher.js"
+    "seed:liquidity": "ts-node src/scripts/seedDemoLiquidity.ts",
+    "start:engine": "node ./dist/matchingEngine/engineLauncher.js",
+    "start:all": "concurrently -k \"node ./dist/index.js\" \"node ./dist/matchingEngine/engineLauncher.js\""
   },
   "keywords": [],
   "author": "",
@@ -22,6 +24,7 @@
     "@types/passport-local": "^1.0.38",
     "bcrypt": "^6.0.0",
     "cluster": "^0.7.7",
+    "concurrently": "^10.0.3",
     "cors": "^2.8.5",
     "dotenv": "^17.2.1",
     "express": "^5.1.0",
@@ -48,5 +51,4 @@
     "ts-node": "^10.9.2",
     "typescript": "^5.9.2"
   }
-  
 }

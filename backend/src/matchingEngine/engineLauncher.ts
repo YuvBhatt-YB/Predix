@@ -25,6 +25,34 @@ type addMarketMsg = {
     marketId:string
 }
 
+const parsePositiveInt = (
+    value: string | undefined,
+    fallback: number,
+): number => {
+    if (!value || value === "auto") return fallback;
+
+    const parsed = Number(value);
+
+    if (!Number.isFinite(parsed) || parsed < 0) {
+        return fallback;
+    }
+
+    return Math.floor(parsed);
+};
+
+const chunkArray = <T>(items: T[], chunkCount: number): T[][] => {
+    if (chunkCount <= 0) return [];
+
+    const safeChunkCount = Math.min(chunkCount, items.length);
+
+    return Array.from({ length: safeChunkCount }, (_, index) => {
+        const start = Math.floor((index * items.length) / safeChunkCount);
+        const end = Math.floor(((index + 1) * items.length) / safeChunkCount);
+
+        return items.slice(start, end);
+    }).filter((chunk) => chunk.length > 0);
+};
+
 
 if(cluster.isPrimary){
     console.log(`Main Engine Started ${process.pid}`);
@@ -39,16 +67,42 @@ if(cluster.isPrimary){
             if(markets.length === 0){
                 process.exit(0)
             }
-            const cpuCounts = Math.max(1,os.cpus().length -3)
+            const availableCpus = os.cpus().length;
+
+            const defaultMarketWorkers =
+                process.env.NODE_ENV === "production"
+                    ? 1
+                    : Math.max(1, availableCpus - 3);
+            const defaultLiquidityWorkers =
+                process.env.NODE_ENV === "production" ? 0 : 2;
+
+            const requestedMarketWorkers = parsePositiveInt(
+                process.env.ENGINE_WORKERS,
+                defaultMarketWorkers,
+            );
+
+            const requestedLiquidityWorkers = parsePositiveInt(
+                process.env.LIQUIDITY_WORKERS,
+                defaultLiquidityWorkers,
+            );
+            const marketWorkerCount = Math.max(
+                1,
+                Math.min(requestedMarketWorkers, markets.length),
+            );
+
+            const liquidityWorkerCount = Math.max(
+                0,
+                Math.min(requestedLiquidityWorkers, markets.length),
+            );
+            console.log({
+                availableCpus,
+                marketCount: markets.length,
+                marketWorkerCount,
+                liquidityWorkerCount,
+            });
             
-            const marketPerWorkers = Math.ceil(markets.length/cpuCounts)
-            console.log(marketPerWorkers)
-            const LP_WORKERS = 2
-            const marketPerLiquidityProvider = Math.ceil(markets.length/LP_WORKERS)
-            console.log(marketPerLiquidityProvider)
-            
-            const chunks = Array.from({length:cpuCounts},(_,i) => markets.slice(i * marketPerWorkers,(i+1)* marketPerWorkers))
-            const liquidityChunks = Array.from({length:LP_WORKERS},(_,i) => markets.slice(i*marketPerLiquidityProvider,(i+1)* marketPerLiquidityProvider))
+            const chunks = chunkArray(markets, marketWorkerCount);
+            const liquidityChunks = chunkArray(markets, liquidityWorkerCount);
             console.log(liquidityChunks)
             const workerAssignedMarkets = new Map()
             const workers = new Map<number,Worker>()
@@ -101,6 +155,12 @@ if(cluster.isPrimary){
                     console.log(`New Router ${newRouter.process.pid} Started`)
                 }else if(worker.process.env.LIQUIDITY){
                     const assigned = liquidityWorkersAssignedMarkets.get(worker.process.pid)
+                    if (!assigned) {
+                        console.log(
+                            `Liquidity Worker ${worker.process.pid} died but had no assigned markets. Skipping restart.`,
+                        );
+                        return;
+                    }
                     console.log(`Liquidity Worker ${worker.process.pid} died.Restarting`)
                     const newWorker = cluster.fork({MARKETS:assigned,LIQUIDITY:true})
                     const newPid = newWorker.process.pid
@@ -111,9 +171,20 @@ if(cluster.isPrimary){
                 }
                 else{
                     const assigned = workerAssignedMarkets.get(worker.process.pid)
+                    if (!assigned) {
+                        console.log(
+                            `Worker ${worker.process.pid} died but had no assigned markets. Skipping restart.`,
+                        );
+                        return;
+                    }
                     console.log(`Worker ${worker.process.pid} died.Restarting`)
                     const newWorker = cluster.fork({MARKETS:assigned})
-                    workerAssignedMarkets.set(newWorker.process.pid,assigned)
+                    const newPid = newWorker.process.pid;
+
+                    if (newPid === undefined)
+                        throw new Error("New Worker PID Undefined");
+                    workerAssignedMarkets.set(newPid,assigned)
+                    workers.set(newPid,newWorker)
                     router.send({
                         type:"WORKER_MARKETS_UPDATE",
                         data:Array.from(workerAssignedMarkets.entries())
