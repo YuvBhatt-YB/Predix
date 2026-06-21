@@ -8,6 +8,7 @@ export const rebuildRedisFromDB = async () => {
     const redis = createRebuildRedisClient()
     try {
         await redis.flushdb()
+        console.log("Rebuilding Redis orderbook from DB...");
         const openOrders = await prisma.order.findMany({
             where: {
                 status: {
@@ -21,7 +22,7 @@ export const rebuildRedisFromDB = async () => {
 
 
         console.log(openOrders);
-        
+        console.log("Open limit orders found for Redis rebuild:", openOrders.length);
     
        for (const order of openOrders){
             await redis.hset(`Order:${order.id}`,order)
