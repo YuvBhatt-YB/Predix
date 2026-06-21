@@ -10,9 +10,13 @@ import NotFound from '../Not Found/NotFound'
 import Loading from '../ui/Loading'
 
 const Markets = () => {
-  const {loading,markets,debouncedLoading} = useSelector((state)=> state.markets)
+  const {loading,markets,debouncedLoading,nextCursor} = useSelector((state)=> state.markets)
   const {loaderRef} = useMarketData()
   const marketsArray = Object.values(markets)
+
+  const isInitialLoading = loading && marketsArray.length === 0
+  const isSearchingLoading = debouncedLoading && marketsArray.length === 0
+  const isPaginating = loading && marketsArray.length > 0
   
   return (
     <div >
@@ -22,12 +26,25 @@ const Markets = () => {
           <Search />
         </div>
         {/* <p>{JSON.stringify(marketsArray)}</p> */}
-        {debouncedLoading || loading ? (
+        {isInitialLoading || isSearchingLoading ? (
           <div className=' w-full flex items-center justify-center'><Loading /></div>
-        ) : marketsArray && marketsArray.length > 0 ? (<div className="  w-full grid md:grid-cols-2 lg:grid-cols-3 gap-3 py-4">
+        ): marketsArray .length > 0 ? (
+          <>
+          <div className="  w-full grid md:grid-cols-2 lg:grid-cols-3 gap-3 py-4">
         {marketsArray.map(market => (<MarketModal key={market.id} marketDetails={market} />))}  
-        </div>): (<div><NotFound text="No Markets" /></div>)}
-        <div className=' h-10' ref={loaderRef}></div>
+        </div>
+        {isPaginating && (
+           <div className="w-full flex items-center justify-center py-4">
+                <Loading />
+              </div>
+        )}
+          </>
+        ) : (
+          <div>
+            <NotFound text="No Markets" />
+          </div>
+        )}
+        {nextCursor && <div className=' h-10' ref={loaderRef}></div>}
         </div>
       </div>
   );

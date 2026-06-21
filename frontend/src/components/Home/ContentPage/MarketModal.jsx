@@ -20,9 +20,9 @@ const MarketModal = ({marketDetails}) => {
             <Progress value={progress} className="flex-1 bg-light [&>div]:bg-progress"  />
             <p className=' text-textGray'><span className='text-primary font-semibold'>{currPrice}%</span> Chance</p>
         </div>
-        <div className=' flex gap-2 items-center'>
+        <div className=' flex gap-4 items-center'>
           <img src={marketDetails.image} alt="" srcSet="" className='w-[30px] h-[30px] rounded-small' />
-          <Link to={`/home/${marketDetails.id}`} className=' font-semibold text-primary hover:underline hover:underline-offset-2 hover:decoration-2 leading-4.5'>{marketDetails.title}</Link>
+          <Link to={`/home/${marketDetails.id}`} className=' font-semibold text-primary hover:underline hover:underline-offset-2 hover:decoration-2 leading-4.5 text-sm'>{marketDetails.title}</Link>
         </div>
         <div className=' w-full flex gap-2 mt-4'>
             <Button onClick={handleClick}  size="lg" className="flex-1/2 text-darkGreen bg-lightGreen rounded-small hover:bg-darkGreen hover:text-white transition duration-200 ease-in-out cursor-pointer"><FaAnglesUp /> Buy Yes</Button>
