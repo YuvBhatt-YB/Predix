@@ -14,6 +14,10 @@ export default function useMarketData(){
         const {reset = false} = options
         if(!reset && nextCursor === null) return
         if(loading) return
+        if (reset) {
+            dispatch(resetMarkets());
+            dispatch(setNextCursor(undefined)); 
+        }
         dispatch(setLoading(true))
         try{
             
@@ -41,7 +45,7 @@ export default function useMarketData(){
                 }
             })
             if(reset){
-                dispatch(resetMarkets())
+                
                 dispatch(setMarkets(mergedMarkets))
             }else{
                 dispatch(appendMarkets(mergedMarkets))
@@ -59,11 +63,11 @@ export default function useMarketData(){
     useEffect(() => {
       
       if(searchQuery){
-        setDebouncedLoading(true)
+        dispatch(setDebouncedLoading(true))
         const handler = setTimeout(async()=>{
 
             await fetchMarkets({reset:true})
-            setDebouncedLoading(false)
+            dispatch(setDebouncedLoading(false))
         },500)
 
         return ()=> clearTimeout(handler)
