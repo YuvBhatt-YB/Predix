@@ -6,6 +6,12 @@ Predix is a full-stack real-time prediction market platform where users can trad
 
 The project combines a React/Vite frontend, an Express/TypeScript backend, Prisma/PostgreSQL persistence, Redis-backed orderbook infrastructure, Socket.IO streaming, and a worker-based matching engine to simulate exchange-like behavior in a demo environment.
 
+## Live Demo Note
+
+The hosted demo runs on free-tier infrastructure, so first requests, orderbook loading, and trade settlement may take a few seconds.
+
+For stability on free hosting, the continuous liquidity-provider workers are disabled in the live demo. Instead, demo liquidity is pre-seeded into the orderbook. The full worker-based matching engine and liquidity-provider architecture are included in the repository and can run locally or on stronger infrastructure.
+
 ## Project Screenshots
 
 Below are selected screens from the Predix web application.
