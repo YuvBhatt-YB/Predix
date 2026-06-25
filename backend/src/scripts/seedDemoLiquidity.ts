@@ -5,7 +5,6 @@ import {
     OrderSide,
     OrderStatus,
     Prisma,
-    TransactionType,
 } from "@prisma/client";
 import { BOT } from "../matchingEngine/LP_CONFIG";
 import prisma from "../prisma";
@@ -24,9 +23,14 @@ type MarketSeedResult = {
     holdingsUpdated: number;
 };
 
-const DEMO_ORDER_QUANTITY = 500;
-const DEMO_HOLDING_SHARES = 2_000;
-const DEMO_MIN_FREE_BALANCE = 100_000;
+type SeedMarket = {
+    id: string;
+    title: string;
+};
+
+const DEMO_ORDER_QUANTITY = 10_000;
+const DEMO_HOLDING_SHARES = 25_000;
+const DEMO_MIN_FREE_BALANCE = 1_000_000;
 
 const DEMO_LEVELS: SeedLevel[] = [
     {
@@ -59,10 +63,67 @@ const roundMoney = (value: number) => {
     return Math.round((value + Number.EPSILON) * 100) / 100;
 };
 
-const getPotentialBuyLockPerMarket = () => {
-    return DEMO_LEVELS.filter((level) => level.side === OrderSide.BUY).reduce(
-        (total, level) => total + roundMoney(level.price * level.quantity),
-        0,
+const getSeedOrderKey = (marketId: string, level: SeedLevel) => {
+    return `${marketId}:${level.outcome}:${level.side}:${level.price}`;
+};
+
+const getActiveSeedOrderKeys = async (botId: string, marketIds: string[]) => {
+    if (marketIds.length === 0) {
+        return new Set<string>();
+    }
+
+    const existingOrders = await prisma.order.findMany({
+        where: {
+            userId: botId,
+            marketId: {
+                in: marketIds,
+            },
+            orderType: OrderExecutionType.LIMIT,
+            status: {
+                in: [OrderStatus.OPEN, OrderStatus.PARTIAL],
+            },
+            remainingQuantity: {
+                gt: 0,
+            },
+        },
+        select: {
+            marketId: true,
+            outcome: true,
+            type: true,
+            price: true,
+        },
+    });
+
+    return new Set(
+        existingOrders.map((order) =>
+            getSeedOrderKey(order.marketId, {
+                outcome: order.outcome,
+                side: order.type,
+                price: order.price,
+                quantity: DEMO_ORDER_QUANTITY,
+            }),
+        ),
+    );
+};
+
+const getMissingBuyLockTotal = (
+    markets: SeedMarket[],
+    activeSeedOrderKeys: Set<string>,
+) => {
+    return roundMoney(
+        markets.reduce((total, market) => {
+            const missingBuyLockForMarket = DEMO_LEVELS.filter(
+                (level) =>
+                    level.side === OrderSide.BUY &&
+                    !activeSeedOrderKeys.has(getSeedOrderKey(market.id, level)),
+            ).reduce(
+                (marketTotal, level) =>
+                    marketTotal + roundMoney(level.price * level.quantity),
+                0,
+            );
+
+            return total + missingBuyLockForMarket;
+        }, 0),
     );
 };
 
@@ -214,11 +275,113 @@ const findExistingSeedOrder = async (
             status: {
                 in: [OrderStatus.OPEN, OrderStatus.PARTIAL],
             },
+            remainingQuantity: {
+                gt: 0,
+            },
         },
         select: {
             id: true,
         },
     });
+};
+
+const getBuyLockAmount = (levels: SeedLevel[]) => {
+    return roundMoney(
+        levels
+            .filter((level) => level.side === OrderSide.BUY)
+            .reduce(
+                (total, level) =>
+                    total + roundMoney(level.price * level.quantity),
+                0,
+            ),
+    );
+};
+
+const getSellRequirements = (levels: SeedLevel[]) => {
+    const requirements = new Map<OrderOutcome, number>();
+
+    for (const level of levels) {
+        if (level.side !== OrderSide.SELL) {
+            continue;
+        }
+
+        requirements.set(
+            level.outcome,
+            (requirements.get(level.outcome) || 0) + level.quantity,
+        );
+    }
+
+    return requirements;
+};
+
+const lockWalletForBuyOrders = async (
+    tx: Prisma.TransactionClient,
+    botId: string,
+    lockAmount: number,
+) => {
+    if (lockAmount <= 0) {
+        return;
+    }
+
+    const wallet = await tx.wallet.findUnique({
+        where: {
+            userID: botId,
+        },
+        select: {
+            balance: true,
+        },
+    });
+
+    if (!wallet) {
+        throw new Error("LP wallet not found while seeding BUY orders");
+    }
+
+    if (wallet.balance < lockAmount) {
+        throw new Error(
+            `LP wallet balance ${wallet.balance.toFixed(2)} is below required lock ${lockAmount.toFixed(2)}`,
+        );
+    }
+
+    await tx.wallet.update({
+        where: {
+            userID: botId,
+        },
+        data: {
+            balance: {
+                decrement: lockAmount,
+            },
+            locked: {
+                increment: lockAmount,
+            },
+        },
+    });
+};
+
+const lockHoldingsForSellOrders = async (
+    tx: Prisma.TransactionClient,
+    botId: string,
+    marketId: string,
+    sellRequirements: Map<OrderOutcome, number>,
+) => {
+    for (const [outcome, quantity] of sellRequirements) {
+        await tx.holdings.update({
+            where: {
+                userId_marketId_outcome: {
+                    userId: botId,
+                    marketId,
+                    outcome,
+                },
+            },
+            data: {
+                shares: {
+                    decrement: quantity,
+                },
+                lockedShares: {
+                    increment: quantity,
+                },
+            },
+        });
+    }
 };
 
 const createSeedOrder = async (
@@ -227,70 +390,6 @@ const createSeedOrder = async (
     marketId: string,
     level: SeedLevel,
 ) => {
-    if (level.side === OrderSide.BUY) {
-        const lockAmount = roundMoney(level.price * level.quantity);
-        const wallet = await tx.wallet.findUnique({
-            where: {
-                userID: botId,
-            },
-            select: {
-                id: true,
-                balance: true,
-            },
-        });
-
-        if (!wallet) {
-            throw new Error("LP wallet not found while seeding BUY order");
-        }
-
-        if (wallet.balance < lockAmount) {
-            throw new Error(
-                `LP wallet balance ${wallet.balance.toFixed(2)} is below required lock ${lockAmount.toFixed(2)}`,
-            );
-        }
-
-        await tx.wallet.update({
-            where: {
-                userID: botId,
-            },
-            data: {
-                balance: {
-                    decrement: lockAmount,
-                },
-                locked: {
-                    increment: lockAmount,
-                },
-            },
-        });
-
-        await tx.transaction.create({
-            data: {
-                type: TransactionType.TRADE_LOCK,
-                amount: lockAmount,
-                description: `LOCKED IN $${lockAmount.toFixed(2)} FOR DEMO LP ORDER`,
-                walletId: wallet.id,
-            },
-        });
-    } else {
-        await tx.holdings.update({
-            where: {
-                userId_marketId_outcome: {
-                    userId: botId,
-                    marketId,
-                    outcome: level.outcome,
-                },
-            },
-            data: {
-                shares: {
-                    decrement: level.quantity,
-                },
-                lockedShares: {
-                    increment: level.quantity,
-                },
-            },
-        });
-    }
-
     await tx.order.create({
         data: {
             userId: botId,
@@ -308,48 +407,77 @@ const createSeedOrder = async (
 
 const seedMarket = async (
     botId: string,
-    market: { id: string; title: string },
+    market: SeedMarket,
 ): Promise<MarketSeedResult> => {
-    return prisma.$transaction(async (tx) => {
-        const result: MarketSeedResult = {
-            created: 0,
-            skipped: 0,
-            holdingsCreated: 0,
-            holdingsUpdated: 0,
-        };
+    return prisma.$transaction(
+        async (tx) => {
+            const result: MarketSeedResult = {
+                created: 0,
+                skipped: 0,
+                holdingsCreated: 0,
+                holdingsUpdated: 0,
+            };
+            const levelsToCreate: SeedLevel[] = [];
 
-        for (const level of DEMO_LEVELS) {
-            const existingOrder = await findExistingSeedOrder(
-                tx,
-                botId,
-                market.id,
-                level,
-            );
+            for (const level of DEMO_LEVELS) {
+                const existingOrder = await findExistingSeedOrder(
+                    tx,
+                    botId,
+                    market.id,
+                    level,
+                );
 
-            if (existingOrder) {
-                result.skipped += 1;
-                continue;
+                if (existingOrder) {
+                    result.skipped += 1;
+                    continue;
+                }
+
+                levelsToCreate.push(level);
             }
 
-            if (level.side === OrderSide.SELL) {
+            if (levelsToCreate.length === 0) {
+                return result;
+            }
+
+            const sellRequirements = getSellRequirements(levelsToCreate);
+
+            for (const [outcome, requiredShares] of sellRequirements) {
                 const holdingResult = await ensureHoldingForSell(
                     tx,
                     botId,
                     market.id,
-                    level.outcome,
-                    level.quantity,
+                    outcome,
+                    requiredShares,
                 );
 
                 result.holdingsCreated += holdingResult.created;
                 result.holdingsUpdated += holdingResult.updated;
             }
 
-            await createSeedOrder(tx, botId, market.id, level);
-            result.created += 1;
-        }
+            await lockWalletForBuyOrders(
+                tx,
+                botId,
+                getBuyLockAmount(levelsToCreate),
+            );
+            await lockHoldingsForSellOrders(
+                tx,
+                botId,
+                market.id,
+                sellRequirements,
+            );
 
-        return result;
-    });
+            for (const level of levelsToCreate) {
+                await createSeedOrder(tx, botId, market.id, level);
+                result.created += 1;
+            }
+
+            return result;
+        },
+        {
+            maxWait: 10000,
+            timeout: 30000,
+        },
+    );
 };
 
 const main = async () => {
@@ -368,10 +496,17 @@ const main = async () => {
             createdAt: "asc",
         },
     });
+    const activeSeedOrderKeys = await getActiveSeedOrderKeys(
+        bot.id,
+        activeMarkets.map((market) => market.id),
+    );
+    const missingBuyLockTotal = getMissingBuyLockTotal(
+        activeMarkets,
+        activeSeedOrderKeys,
+    );
 
     const walletTargetBalance =
-        DEMO_MIN_FREE_BALANCE +
-        Math.ceil(activeMarkets.length * getPotentialBuyLockPerMarket());
+        DEMO_MIN_FREE_BALANCE + Math.ceil(missingBuyLockTotal);
 
     await ensureLpWallet(bot.id, walletTargetBalance);
 
